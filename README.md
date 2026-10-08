@@ -98,22 +98,10 @@ cargo test --features maelstrom
 ### The compliance corpus
 
 The protocol's obligations are a corpus of test cases stated as data
-(`docs/uvrr-host-compliance.md`), and the corpus is replayable over a
-network transport, so a second implementation can prove conformance
-without re-deriving the harness. The `uvrr-conformance` binary serves the
-abstract host interface over loopback HTTP and a [Hurl](https://hurl.dev)
-suite drives it as a client that is not this crate:
-
-```shell
-cargo run --features conformance_host --bin uvrr-conformance &
-hurl --test --variable base_url=http://127.0.0.1:8099 tests/hurl
-```
-
-Both lanes are gates. `make conformance` runs them in process: every case
-must return `pass` over the transport, the capture served over HTTP must be
-byte-for-byte the capture the in-process runner derives, the committed Hurl
-suite must equal the suite generated from the committed corpus, and the
-Hurl client must report the whole corpus passing.
+(`docs/uvrr-host-compliance.md`), replayed in process by the reference
+runner. The committed corpus is generated from the reference behaviour:
+`make corpus-export` regenerates it, and the sync gate fails when the
+committed bytes drift from what the reference produces.
 
 ### The pre-push hook
 
