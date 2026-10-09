@@ -93,6 +93,10 @@ trace = []
 default = []
 serde = ["dep:serde", "dep:serde_json"]
 maelstrom = ["serde", "dep:serde_json"]
+# The locks demo (`src/demo/`): the advisory locks over uVRR with the least
+# environment. It rides the `serde` lane only, for the lock table's
+# application payload codec; it adds no dependency of its own.
+demo-locks = ["serde"]
 
 # Build-time tooling for `cargo test`, not a consumer's supply chain: nothing here
 # reaches a crate that depends on `uvrr-core`, and the [dependencies] gate above is

@@ -156,7 +156,7 @@ fn msrv_is_declared() {
 fn feature_table_declares_the_gated_lanes() {
     let features = table(MANIFEST, "features").expect("[features] table must exist");
 
-    for required in ["default", "serde", "maelstrom"] {
+    for required in ["default", "serde", "maelstrom", "demo-locks"] {
         let declared = features
             .lines()
             .map(str::trim)
