@@ -9,15 +9,25 @@
 //! An industrial consumer uses the same callback for amortised
 //! maintenance and for logging. The wiring this tree ships by default is
 //! [`NoOpHook`].
+//!
+//! This is the only trait the module carries. The other two seams the
+//! machinery is written against are the disk seam
+//! ([`crate::demo::Disk`]) and the state seam
+//! ([`crate::demo::StateStore`]), which live beside their own
+//! implementations; the commit hook has no durable footprint and so
+//! stands alone.
 
 use crate::ids::Slot;
 
 /// A trigger fired at each applied commit.
 ///
 /// Called synchronously on the apply path, once per applied commit,
-/// immediately before the state machine is asked to execute against the
-/// lock table, so a hook observes commits in the order the replica
-/// committed them and never asynchronously with respect to them.
+/// between the boot's one lazy state load and the state machine's
+/// execution: a hook sees the commit after the node's state has been
+/// settled for it and before the table has moved. A hook therefore
+/// observes commits in the order the replica committed them and never
+/// asynchronously with respect to them, and a hook that kills the process
+/// kills it at a commit the state file has not yet been told about.
 ///
 /// The method returns nothing, and that is the whole contract. The
 /// callback carries no verdict: a hook cannot fail a commit, cannot

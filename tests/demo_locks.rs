@@ -1,32 +1,28 @@
-//! The locks demo's harness: the crash-reincarnation story end to end.
+//! The locks demo's harness: the crash-reincarnation story end to end,
+//! and the seams under it.
 //!
-//! A cluster of three lock nodes on an in-memory transport, one
-//! single-threaded loop per node. A client takes locks, a chosen node
-//! fakes its death at a named commit (slot 5, the observation the story
-//! starts with), the crash performs no disk sync and no fence write, the
-//! reborn identity distrusts its stale state file by the fence's verdict,
-//! rejoins through the announcement and the leader's forced sequence, and
-//! the observation that closes the story returns the same lease bytes
-//! from every node, survivors and reborn alike.
-//!
-//! No wall-clock timeouts anywhere: every wait is a bounded, deterministic
-//! loop over the transport, and the lease clock is the loop's logical
-//! tick.
+//! Three lock nodes on an in-memory transport, one single-threaded loop
+//! per node. A client takes locks, a chosen node fakes its death at a
+//! named commit, the crash writes nothing, the reborn identity distrusts
+//! its stale state file by the fence's verdict, rejoins, and the closing
+//! observation returns the same lease bytes from every node. The seams
+//! are proved beside it, each through its own public surface.
 
 #![cfg(feature = "demo-locks")]
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, VecDeque};
-use std::path::PathBuf;
+use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
-use serde_json::json;
+use serde_json::{Value, json};
 
 use uvrr::demo::{
-    BootFence, ClientId, CommitHook, DemoDisk, DemoNode, FileBootFence, FileStateStore, NoOpHook,
-    Response, StateLoad, StateStore, Transport,
+    Applied, BootFence, BootRefusal, ClientId, CommitHook, DemoDisk, DemoNode, FenceWord,
+    FileBootFence, FileStateStore, Lease, NoOpHook, Response, Service, StateLoad, StateSnapshot,
+    StateStore, Transport,
 };
 use uvrr::ids::{CrashCounter, Era, NodeId, Operation, OperationId, Slot, SystemId};
 use uvrr::message::Message;
@@ -35,13 +31,11 @@ use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Tag, Unpack};
 
 /// The suspicion budget in ticks: a node fences into the next view after
-/// more than three ticks of primary silence (S4). Logical ticks, never a
-/// wall clock.
+/// more than three ticks of primary silence (S4). Logical, never a clock.
 const TIMEOUT: u64 = 3;
 
-/// The lease window, in committed slots: long enough to survive the
-/// rejoin's choreography, short enough that a bounded run of committed
-/// observations expires it.
+/// The lease window in committed slots: long enough to survive the
+/// rejoin's choreography, short enough that a bounded run expires it.
 const LEASE_WINDOW: u64 = 16;
 
 fn n(id: u32) -> NodeId {
@@ -55,13 +49,12 @@ fn op_id(lsb: u64) -> OperationId {
     OperationId { msb: 0, lsb }
 }
 
-/// The demo's in-memory transport: one shared bus, explicit queues, no
-/// loss and no reordering. The log records every datagram's route, so
-/// the announcement's tag is assertable without touching the nodes.
+/// The in-memory transport: one shared bus, explicit queues, no loss and
+/// no reordering, with a route log that makes a fan-out assertable.
 #[derive(Clone)]
 struct Bus {
     queue: Rc<RefCell<VecDeque<Envelope>>>,
-    log: Rc<RefCell<Vec<(NodeId, NodeId, Tag)>>>,
+    log: Rc<RefCell<HashSet<(NodeId, NodeId, Tag)>>>,
 }
 
 struct Envelope {
@@ -74,15 +67,22 @@ impl Bus {
     fn new() -> Self {
         Self {
             queue: Rc::new(RefCell::new(VecDeque::new())),
-            log: Rc::new(RefCell::new(Vec::new())),
+            log: Rc::new(RefCell::new(HashSet::new())),
         }
     }
 
+    /// Whether one node put one tag on the wire at all.
     fn sent(&self, from: NodeId, tag: Tag) -> bool {
         self.log
             .borrow()
             .iter()
-            .any(|(sent_from, _, sent_tag)| *sent_from == from && *sent_tag == tag)
+            .any(|&(f, _, t)| f == from && t == tag)
+    }
+
+    /// Whether one node put one tag on the wire to one peer, so a
+    /// broadcast is assertable peer by peer.
+    fn sent_to(&self, from: NodeId, to: NodeId, tag: Tag) -> bool {
+        self.log.borrow().contains(&(from, to, tag))
     }
 }
 
@@ -104,8 +104,7 @@ impl Transport for MemTransport {
         // The bus has no partition and no era routing: the copy is queued
         // as the core released it, the era noted for the record only.
         let _ = era;
-        let mut queue = self.bus.queue.borrow_mut();
-        queue.push_back(Envelope {
+        self.bus.queue.borrow_mut().push_back(Envelope {
             from: self.own,
             to,
             message: message.clone(),
@@ -113,13 +112,12 @@ impl Transport for MemTransport {
         self.bus
             .log
             .borrow_mut()
-            .push((self.own, to, message.header.tag));
+            .insert((self.own, to, message.header.tag));
     }
 }
 
-/// The test's own commit hook: the trigger the crash decision hangs on.
-/// It returns nothing and carries no verdict; the driver reads the flag
-/// between steps, and the machinery never does.
+/// The commit hook the crash decision hangs on: no verdict, and only the
+/// driver ever reads its flag.
 struct CrashAtSlot {
     fired: Arc<AtomicBool>,
 }
@@ -134,24 +132,25 @@ impl CommitHook for CrashAtSlot {
 
 static ROOT_SEQ: AtomicU64 = AtomicU64::new(0);
 
-/// One unique temporary root per cluster, so a parallel test target never
-/// shares another's files.
-fn temp_root() -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("the system clock is after the epoch")
-        .as_nanos();
-    std::env::temp_dir().join(format!(
-        "uvrr-demo-locks-{}-{}-{}",
-        std::process::id(),
-        nanos,
-        ROOT_SEQ.fetch_add(1, Ordering::SeqCst),
-    ))
+/// A fresh temporary directory: the process id plus a counter is unique.
+fn temp_dir() -> PathBuf {
+    let unique = ROOT_SEQ.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("uvrr-demo-locks-{}-{unique}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("the test directory creates");
+    dir
+}
+
+/// One node's directory, created. Idempotent, so a reader of a crashed
+/// node's files asks for it the way a writer does.
+fn node_dir(root: &Path, index: usize) -> PathBuf {
+    let dir = root.join(format!("node{index}"));
+    std::fs::create_dir_all(&dir).expect("the node directory creates");
+    dir
 }
 
 /// The demo cluster: the live nodes, the bus, and the disks a crash has
-/// recorded. The glue the harness drives; every protocol decision lives
-/// in the demo module, every assertion reads its public surface.
+/// recorded. Every protocol decision lives in the demo module; every
+/// assertion here reads its public surface.
 struct Cluster {
     bus: Bus,
     nodes: Vec<Option<DemoNode>>,
@@ -164,23 +163,18 @@ struct Cluster {
 }
 
 impl Cluster {
-    /// The genesis nodes, each a first life over its own directory: one
-    /// fence file, one state file, one end of the bus.
+    /// The genesis nodes, each a first life over its own directory.
     fn provision(size: usize) -> Self {
         let bus = Bus::new();
         let genesis: Vec<NodeId> = (0..size as u32).map(n).collect();
-        let root = temp_root();
+        let root = temp_dir();
         let crash_fired = Arc::new(AtomicBool::new(false));
         let mut nodes = Vec::with_capacity(size);
         let mut disks = Vec::with_capacity(size);
         let mut slot_of = BTreeMap::new();
         for (index, &id) in genesis.iter().enumerate() {
-            let dir = root.join(format!("node{index}"));
-            std::fs::create_dir_all(&dir).expect("the node directory creates");
-            let transport = MemTransport {
-                own: id,
-                bus: bus.clone(),
-            };
+            let bus = bus.clone();
+            let dir = node_dir(&root, index);
             let hooks: Box<dyn CommitHook> = if id == n(size as u32 - 1) {
                 Box::new(CrashAtSlot {
                     fired: Arc::clone(&crash_fired),
@@ -193,9 +187,9 @@ impl Cluster {
                 genesis.clone(),
                 Box::new(FileBootFence::new(&dir.join("fence"))),
                 Box::new(FileStateStore::new(&dir.join("locks"))),
-                Box::new(transport),
+                Box::new(MemTransport { own: id, bus }),
                 hooks,
-                Cluster::knobs(),
+                Self::knobs(),
             )
             .expect("the genesis order provisions");
             slot_of.insert(id, index);
@@ -207,7 +201,7 @@ impl Cluster {
             nodes,
             disks,
             slot_of,
-            knobs: Cluster::knobs(),
+            knobs: Self::knobs(),
             crash_fired,
             root,
             clock: 0,
@@ -243,64 +237,46 @@ impl Cluster {
             .unwrap_or_else(|| panic!("{id:?} is down"))
     }
 
+    /// The directory one node's files live in.
+    fn dir_of(&self, id: NodeId) -> PathBuf {
+        node_dir(&self.root, self.index_of(id))
+    }
+
+    /// Up by identity, never by slot: a crashed identity's slot holds its
+    /// reborn successor, and datagrams to the dead one address nobody.
     fn is_up(&self, id: NodeId) -> bool {
-        // By identity, never by slot: a crashed identity's slot holds its
-        // reborn successor now, and datagrams addressed to the dead one
-        // are addressed to nobody.
         self.nodes[self.index_of(id)]
             .as_ref()
             .is_some_and(|node| node.own() == id)
     }
 
+    /// One identity per live slot, never a superseded predecessor.
     fn live_ids(&self) -> Vec<NodeId> {
-        // One identity per live slot: the identity the live node runs
-        // under, never a superseded predecessor.
         self.slot_of
             .iter()
-            .filter(|&(id, index)| {
-                self.nodes[*index]
-                    .as_ref()
-                    .is_some_and(|node| node.own() == *id)
-            })
+            .filter(|&(id, _)| self.is_up(*id))
             .map(|(&id, _)| id)
             .collect()
     }
 
-    /// One bounded, deterministic wait: every live node drains the bus,
-    /// in index order, repeatedly, until a full pass delivers nothing
-    /// and nothing live-addressed is pending. No wall clock anywhere.
+    /// One bounded, deterministic wait: every live node drains the bus
+    /// until a full pass delivers nothing and nothing live is pending.
     fn quiesce(&mut self) {
         loop {
             let mut delivered = 0;
-            for index in 0..self.nodes.len() {
-                if self.nodes[index].is_some() {
-                    let outcomes = self.nodes[index].as_mut().expect("checked above").run();
-                    for outcome in &outcomes {
-                        if let Err(refusal) = &outcome.result {
-                            panic!(
-                                "n={:?} refused a delivery: {refusal:?}",
-                                self.nodes[index].as_ref().expect("checked above").own()
-                            );
-                        }
-                    }
-                    delivered += outcomes.len();
-                }
+            for node in self.nodes.iter_mut().flatten() {
+                delivered += node.run().len();
             }
-            let pending_to_live = self
-                .bus
-                .queue
-                .borrow()
-                .iter()
-                .any(|envelope| self.is_up(envelope.to));
-            if delivered == 0 && !pending_to_live {
+            let bus = self.bus.clone();
+            let pending = bus.queue.borrow().iter().any(|e| self.is_up(e.to));
+            if delivered == 0 && !pending {
                 break;
             }
         }
     }
 
-    /// Advances the run's one logical clock by one and settles. The
-    /// clock is the host's observation (S4): one clock for the whole
-    /// run, read by every live node, a reborn life included.
+    /// Advances the run's one logical clock by one and settles. The clock
+    /// is the host's observation (S4), one for the whole run.
     fn tick_all(&mut self) {
         self.clock += 1;
         let at = self.clock;
@@ -312,9 +288,7 @@ impl Cluster {
         self.quiesce();
     }
 
-    /// The standard bootstrap: the genesis primary promotes itself and
-    /// the backups adopt the initial view from the promotion's commit
-    /// announcement.
+    /// The genesis primary promotes itself; the backups adopt its view.
     fn bootstrap(&mut self) {
         self.tick_all();
         for id in self.live_ids() {
@@ -322,31 +296,18 @@ impl Cluster {
         }
     }
 
-    /// Proposes one lock operation to a node and settles the cluster.
-    fn propose(&mut self, to: NodeId, id: OperationId, payload: &[u8]) -> u64 {
-        let revision = self
-            .node_mut(to)
+    /// Proposes one operation and settles the cluster.
+    fn propose(&mut self, to: NodeId, id: OperationId, payload: &[u8]) {
+        self.node_mut(to)
             .propose(Operation {
                 id,
                 payload: payload.into(),
             })
             .unwrap_or_else(|refusal| panic!("the proposal refused: {refusal:?}"));
         self.quiesce();
-        revision
     }
 
-    /// Announces a reincarnation pair and settles the cluster.
-    fn announce(&mut self, id: NodeId, old: NodeId) -> u64 {
-        let revision = self
-            .node_mut(id)
-            .announce(old)
-            .unwrap_or_else(|refusal| panic!("the announcement refused: {refusal:?}"));
-        self.quiesce();
-        revision
-    }
-
-    /// Crashes a node: its volatile state dies, the disk is recorded,
-    /// and nothing is written.
+    /// Crashes a node: its volatile state dies and nothing is written.
     fn crash(&mut self, id: NodeId) {
         let index = self.index_of(id);
         let node = self.nodes[index]
@@ -355,45 +316,40 @@ impl Cluster {
         self.disks[index] = Some(node.record_disk());
     }
 
-    /// Reincarnates a crashed node over its recorded disk: the fence's
-    /// verdict, the bump, the announcement. Returns the bumped identity.
+    /// Reincarnates a crashed node over its recorded disk. Returns the
+    /// bumped identity.
     fn reincarnate(&mut self, old: NodeId) -> NodeId {
         let index = self.index_of(old);
-        let dir = self.root.join(format!("node{index}"));
+        let dir = node_dir(&self.root, index);
         let disk = self.disks[index]
             .take()
             .unwrap_or_else(|| panic!("{old:?} has no recorded disk; crash it first"));
-        let transport = MemTransport {
-            own: old.next_life().expect("the bump never exhausts in tests"),
-            bus: self.bus.clone(),
-        };
+        let new = old.next_life().expect("the bump never exhausts in tests");
+        let bus = self.bus.clone();
         let node = DemoNode::reincarnate(
             old,
             disk,
             Box::new(FileBootFence::new(&dir.join("fence"))),
             Box::new(FileStateStore::new(&dir.join("locks"))),
-            Box::new(transport),
+            Box::new(MemTransport { own: new, bus }),
             Box::new(NoOpHook),
             self.knobs,
         )
         .unwrap_or_else(|refusal| panic!("the reincarnation refused: {refusal:?}"));
-        let new = node.own();
-        assert_ne!(new, old, "the reincarnation always changes the identity");
-        // The bumped identity occupies the old life's slot from here on;
-        // the superseded identity's datagrams address nobody.
+        assert_eq!(node.own(), new, "the bump is taken up");
+        // The bumped identity occupies the old life's slot from here on; the
+        // superseded identity's datagrams address nobody.
         self.slot_of.insert(new, index);
         self.nodes[index] = Some(node);
+        self.quiesce();
         new
     }
 
-    /// Drives the view change the fence machinery targets: a bounded
-    /// tick sweep on every live node, then the settle. Every live member
-    /// of the target view installs it.
+    /// A bounded tick sweep every live member of the target view installs.
     fn drive_view_change(&mut self) {
         for _ in 0..=TIMEOUT {
             self.tick_all();
         }
-        self.quiesce();
     }
 
     fn status(&self, id: NodeId) -> Status {
@@ -412,38 +368,28 @@ impl Cluster {
         self.node(id).membership()
     }
 
-    fn applied_response(&self, id: NodeId, operation: OperationId) -> Vec<u8> {
+    /// The one applied commit a node recorded for an operation.
+    fn applied(&self, id: NodeId, operation: OperationId) -> &Applied {
         self.node(id)
             .applied()
             .iter()
             .find(|applied| applied.operation_id == operation)
             .unwrap_or_else(|| panic!("{id:?} never applied {operation:?}"))
-            .response
-            .clone()
     }
 
-    fn applied_slot(&self, id: NodeId, operation: OperationId) -> Slot {
-        self.node(id)
-            .applied()
-            .iter()
-            .find(|applied| applied.operation_id == operation)
-            .expect("the node applied the operation")
-            .slot
+    fn applied_response(&self, id: NodeId, operation: OperationId) -> Vec<u8> {
+        self.applied(id, operation).response.clone()
     }
 
-    /// The fence word a node's directory carries, read straight off the
-    /// disk the node does not own.
+    /// The fence word on disk, read off the medium the node does not own.
     fn fence_word(&self, id: NodeId) -> Option<String> {
-        let dir = self.root.join(format!("node{}", self.index_of(id)));
-        std::fs::read_to_string(dir.join("fence"))
+        std::fs::read_to_string(self.dir_of(id).join("fence"))
             .ok()
             .map(|text| text.trim().to_owned())
     }
 
-    /// Whether a node's directory carries a state file.
     fn has_state_file(&self, id: NodeId) -> bool {
-        let dir = self.root.join(format!("node{}", self.index_of(id)));
-        dir.join("locks.state").exists()
+        self.dir_of(id).join("locks.state").exists()
     }
 
     /// A live primary to propose to, named by a live member.
@@ -457,59 +403,125 @@ impl Cluster {
     }
 }
 
-/// One grant: a set, proposed to a live primary and settled.
-fn client_grant(cluster: &mut Cluster, client: ClientId, lock_id: u64, id: u64) -> Response {
-    let (operation, payload) = (
-        op_id(id),
-        serde_json::to_vec(&json!({
-            "op": "set",
-            "client": client,
-            "lock_id": lock_id,
-            "window": LEASE_WINDOW,
-        }))
-        .expect("the request encodes"),
-    );
-    let primary = cluster.a_live_primary();
-    cluster.propose(primary, operation, &payload);
-    let bytes = cluster.applied_response(n(0), operation);
+/// The reply a node executed for `operation`, decoded.
+fn applied_reply(cluster: &Cluster, id: NodeId, operation: OperationId) -> Response {
+    let bytes = cluster.applied_response(id, operation);
     serde_json::from_slice(&bytes).expect("the reply decodes")
 }
 
-/// One observation: a get, proposed to a live primary and settled.
-fn client_observation(cluster: &mut Cluster, lock_id: u64, id: u64) -> OperationId {
-    let (operation, payload) = (
-        op_id(id),
-        serde_json::to_vec(&json!({ "op": "get", "lock_id": lock_id }))
-            .expect("the request encodes"),
-    );
+/// The lease a `Get` reply reports, or the panic naming the node.
+fn live_lease(reply: &Response, at: NodeId) -> Lease {
+    let Response::Get {
+        lease: Some(lease), ..
+    } = reply
+    else {
+        panic!("the lock stands at {at:?}: {reply:?}");
+    };
+    lease.clone()
+}
+
+/// The grant flag and the record a `Set` reply carries.
+fn set_reply(reply: &Response) -> (bool, Option<Lease>) {
+    let Response::Set { granted, lease, .. } = reply else {
+        panic!("not a set reply: {reply:?}");
+    };
+    (*granted, lease.clone())
+}
+
+/// The release flag and the record a `Release` reply carries.
+fn release_reply(reply: &Response) -> (bool, Option<Lease>) {
+    let Response::Release {
+        released, lease, ..
+    } = reply
+    else {
+        panic!("not a release reply: {reply:?}");
+    };
+    (*released, lease.clone())
+}
+
+/// The break flag and the keeper a `Break` reply carries.
+fn break_reply(reply: &Response) -> (bool, Option<Lease>) {
+    let Response::Break { broken, lease, .. } = reply else {
+        panic!("not a break reply: {reply:?}");
+    };
+    (*broken, lease.clone())
+}
+
+/// The lease a `Set` reply granted to the client it names, or the panic.
+fn granted_lease(reply: &Response, client: ClientId) -> Lease {
+    let Response::Set {
+        granted: true,
+        lease: Some(lease),
+        ..
+    } = reply
+    else {
+        panic!("the grant stands for {client:?}: {reply:?}");
+    };
+    assert_eq!(lease.holder, client, "the grant is the requesting client's");
+    lease.clone()
+}
+
+/// The client vocabulary as request bodies: a client names a window and
+/// never an expiry, so a renewal is a wider `Set`.
+fn set_body(client: ClientId, lock_id: u64, window: u64) -> Value {
+    json!({ "op": "set", "client": client, "lock_id": lock_id, "window": window })
+}
+
+fn release_body(client: ClientId, lock_id: u64, lease_id: u64) -> Value {
+    json!({ "op": "release", "client": client, "lock_id": lock_id, "lease_id": lease_id })
+}
+fn break_body(lock_id: u64) -> Value {
+    json!({ "op": "break", "lock_id": lock_id })
+}
+fn get_body(lock_id: u64) -> Value {
+    json!({ "op": "get", "lock_id": lock_id })
+}
+
+/// One way of rotting a framed state file: why, and the mutation.
+type Rot = (&'static str, fn(&mut Vec<u8>));
+
+/// One grant, proposed to a live primary and settled. The reply comes off
+/// that primary, so the proposer is proved to have applied its request.
+fn client_grant(cluster: &mut Cluster, client: ClientId, lock_id: u64, id: u64) -> Response {
+    let operation = op_id(id);
     let primary = cluster.a_live_primary();
+    let payload = serde_json::to_vec(&set_body(client, lock_id, LEASE_WINDOW)).expect("encodes");
+    cluster.propose(primary, operation, &payload);
+    applied_reply(cluster, primary, operation)
+}
+
+/// One observation, settled. The identity comes back because every later
+/// assertion reads the reply off each node by it.
+fn client_observation(cluster: &mut Cluster, lock_id: u64, id: u64) -> OperationId {
+    let operation = op_id(id);
+    let primary = cluster.a_live_primary();
+    let payload = serde_json::to_vec(&get_body(lock_id)).expect("encodes");
     cluster.propose(primary, operation, &payload);
     operation
 }
 
 #[test]
-fn the_join_gossip_fans_out_to_the_configurations_members() {
+fn the_join_gossip_is_wire_valid_and_fans_out_to_every_member() {
+    // The core's own frame at the node's current view, no frontier named.
+    let frame = uvrr::demo::gossip_datagram(2, 7);
+    let packed = Message::unpack_from(&frame).expect("the frame decodes back");
+    assert_eq!(packed.header.tag, Tag::GossipRequest);
+    assert_eq!(packed.header.view.era, Era(2));
+    assert_eq!(packed.header.view.view.0, 7);
+    assert_eq!(packed.header.slot, Slot::NONE);
+
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    cluster
-        .node_mut(n(1))
-        .gossip()
-        .expect("the gossip datagram composes");
-    assert!(
-        cluster.bus.sent(n(1), Tag::GossipRequest),
-        "the joiner half went to the wire"
-    );
+    cluster.node_mut(n(1)).gossip().expect("composes");
+    // The fan-out is the claim: every other member, nobody outside it.
+    for peer in [n(0), n(2)] {
+        let reached = cluster.bus.sent_to(n(1), peer, Tag::GossipRequest);
+        assert!(reached, "{peer:?} got it");
+    }
     cluster.quiesce();
     // The gossip is answered, and the cluster is unharmed by it.
-    assert!(
-        cluster
-            .bus
-            .queue
-            .borrow()
-            .iter()
-            .all(|envelope| envelope.to != n(1)),
-        "the answer was delivered, none left standing for the joiner"
-    );
+    let answered = cluster.bus.queue.borrow().iter().all(|e| e.to != n(1));
+    assert!(answered, "the answer landed");
     for id in cluster.live_ids() {
         assert_eq!(cluster.status(id), Status::Normal, "{id:?} stays normal");
     }
@@ -519,208 +531,232 @@ fn the_join_gossip_fans_out_to_the_configurations_members() {
 fn the_graceful_stop_flushes_state_and_lands_the_clean_word() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    let client_a = ClientId { msb: 2, lsb: 1 };
-    let first = client_grant(&mut cluster, client_a, 1, 1);
-    let Response::Set {
-        granted: true,
-        lease: Some(granted),
-        ..
-    } = &first
-    else {
-        panic!("the grant stands: {first:?}");
-    };
-    // A backup stops: the halt begins, the table flushes eagerly in the
-    // foreground, the clean word lands last.
+    let client = ClientId { msb: 2, lsb: 1 };
+    let granted = granted_lease(&client_grant(&mut cluster, client, 1, 1), client);
+    // A backup stops: halt, eager flush in the foreground, clean word.
     cluster.node_mut(n(2)).stop().expect("the stop flushes");
-    assert_eq!(
-        cluster.fence_word(n(2)).as_deref(),
-        Some("flushed"),
-        "the clean word is the stop's last write"
-    );
-    assert!(
-        cluster.has_state_file(n(2)),
-        "the eager flush wrote the file"
-    );
-    // The file the stop wrote loads back exactly: the clean path's
-    // loadable file, the law's one grant of trust.
-    let dir = cluster.root.join(format!("node{}", cluster.index_of(n(2))));
+    let word = cluster.fence_word(n(2));
+    assert_eq!(word.as_deref(), Some("flushed"), "the stop's last write");
+    assert!(cluster.has_state_file(n(2)), "the eager flush wrote it");
+    // The file the stop wrote loads back exactly: the law's one grant.
+    let dir = cluster.dir_of(n(2));
     let store = FileStateStore::new(&dir.join("locks"));
-    let loaded = store.load().expect("the load never refuses");
-    let snapshot = loaded.expect("the flushed snapshot is there");
-    assert_eq!(snapshot.locks.len(), 1, "the table is the one lease");
-    let lease = snapshot.locks.get(&1).expect("lock 1 is stored");
-    assert_eq!(lease, granted, "the flushed record is the granted record");
+    let snapshot = store.load().expect("no refusal").expect("it is there");
+    let one = BTreeMap::from([(1, granted)]);
+    assert_eq!(snapshot.locks, one, "the flushed table is one lease");
+    // The clean word is the stop's alone: a boot that reads it refuses.
+    let bus = cluster.bus.clone();
+    let boot = DemoNode::reincarnate(
+        n(2),
+        cluster.node(n(2)).record_disk(),
+        Box::new(FileBootFence::new(&dir.join("fence"))),
+        Box::new(FileStateStore::new(&dir.join("locks"))),
+        Box::new(MemTransport { own: n(2), bus }),
+        Box::new(NoOpHook),
+        cluster.knobs,
+    );
+    let refusal = boot.err();
+    let clean = matches!(refusal, Some(BootRefusal::NotCrashed));
+    assert!(clean, "{refusal:?}");
+}
+
+/// The lock table's whole state machine, and the reply each transition
+/// must produce.
+#[test]
+fn the_lock_tables_transitions_reply_as_the_vocabulary_states() {
+    let holder = ClientId { msb: 7, lsb: 1 };
+    let stranger = ClientId { msb: 7, lsb: 2 };
+    let mut table = Service::default();
+    // One committed operation at the slot it applies at, and its reply.
+    let mut at = |clock: u64, body: Value| -> Response {
+        let payload = serde_json::to_vec(&body).expect("encodes");
+        let bytes = table.execute(clock, &payload).expect("the table executes");
+        serde_json::from_slice(&bytes).expect("the reply decodes")
+    };
+    // The keeper a break leaves behind: bumped, nil holder, never live.
+    let keeper = |g: u64| Lease {
+        lease_id: g,
+        holder: ClientId::nil(),
+        expiry: 0,
+        window: 0,
+    };
+
+    // Generation one, stamped clock plus window on the replicated clock.
+    let first = at(3, set_body(holder, 1, LEASE_WINDOW));
+    let granted = granted_lease(&first, holder);
+    assert_eq!(granted.lease_id, 1, "the first grant is generation one");
+    assert_eq!(granted.expiry, 3 + LEASE_WINDOW, "clock plus window");
+    assert_eq!(granted.window, LEASE_WINDOW, "the window asked");
+    let Response::Set { executed_at, .. } = &first else {
+        panic!("a set request answered with a set reply")
+    };
+    assert_eq!(*executed_at, 3, "the reply names its own clock");
+
+    // A stranger's grant is refused, and the incumbent comes back.
+    let refused = at(5, set_body(stranger, 1, LEASE_WINDOW));
+    let held = (false, Some(granted.clone()));
+    assert_eq!(set_reply(&refused), held, "refused, incumbent returned");
+
+    // The holder's own renewal is the same lease extended.
+    let body = set_body(holder, 1, LEASE_WINDOW + 8);
+    let renewed = granted_lease(&at(7, body), holder);
+    assert_eq!(renewed.lease_id, granted.lease_id, "the generation stands");
+    assert!(renewed.expiry > granted.expiry, "the expiry moved");
+
+    // Neither a stale generation nor another client retires anything.
+    let keeps = (false, Some(renewed.clone()));
+    let stale = at(9, release_body(holder, 1, renewed.lease_id + 99));
+    assert_eq!(release_reply(&stale), keeps, "nothing was retired");
+    let wrong = at(11, release_body(stranger, 1, renewed.lease_id));
+    assert_eq!(release_reply(&wrong), keeps, "nor by another client");
+
+    // The holder's own generation retires it, and a free table is no
+    // failure either: there was nothing to retire.
+    let mine = at(13, release_body(holder, 1, renewed.lease_id));
+    let none = (true, None);
+    assert_eq!(release_reply(&mine), none, "the holder retires it");
+    let free = at(15, release_body(holder, 1, renewed.lease_id));
+    let none = (true, None);
+    assert_eq!(release_reply(&free), none, "a free lock is no failure");
+    let vacant = at(17, break_body(1));
+    assert_eq!(break_reply(&vacant), (false, None), "and nothing to break");
+
+    // The break is unconditional, and bumps the keeper it finds again.
+    let body = set_body(holder, 1, LEASE_WINDOW);
+    let held_lease = granted_lease(&at(19, body.clone()), holder);
+    let (broke, kept) = break_reply(&at(21, break_body(1)));
+    assert!(broke, "a record stood to break");
+    let one = keeper(held_lease.lease_id + 1);
+    assert_eq!(kept, Some(one), "the bumped keeper is what stands");
+    let live = Response::Get {
+        lock_id: 1,
+        lease: None,
+        executed_at: 22,
+    };
+    assert_eq!(at(22, get_body(1)), live, "the keeper is never live");
+    let (_, again) = break_reply(&at(23, break_body(1)));
+    let two = keeper(held_lease.lease_id + 2);
+    assert_eq!(again, Some(two), "the next break bumps the keeper again");
+
+    // A grant over a keeper bumps once more, as a release does.
+    let taken = granted_lease(&at(24, body), holder);
+    let bumped = held_lease.lease_id + 3;
+    assert_eq!(taken.lease_id, bumped, "the keeper was bumped once more");
 }
 
 #[test]
 fn the_fence_words_round_trip_and_a_torn_file_reads_unproven() {
-    let dir = temp_root();
-    std::fs::create_dir_all(&dir).expect("the fence directory creates");
-    let path = dir.join("fence");
+    let path = temp_dir().join("fence");
     let mut fence = FileBootFence::new(&path);
-    assert_eq!(
-        fence.read().expect("the read never refuses"),
-        None,
-        "no fence was ever written: the first life"
-    );
+    let read = |fence: &FileBootFence| fence.read().expect("the read never refuses");
+    assert_eq!(read(&fence), None, "no fence yet: the first life");
     for word in [
-        uvrr::demo::FenceWord::Stopping,
-        uvrr::demo::FenceWord::Stopped,
-        uvrr::demo::FenceWord::Flushed,
-        uvrr::demo::FenceWord::Stopping,
+        FenceWord::Stopping,
+        FenceWord::Stopped,
+        FenceWord::Flushed,
+        FenceWord::Stopping,
     ] {
         fence.write(word).expect("the forced write lands");
-        assert_eq!(
-            fence.read().expect("the read never refuses"),
-            Some(word),
-            "the word reads back as it was written"
-        );
+        assert_eq!(read(&fence), Some(word), "the word reads back as written");
     }
-    std::fs::write(&path, b"not-a-word").expect("the torn file writes");
-    assert_eq!(
-        fence.read().expect("the read never refuses"),
-        Some(uvrr::demo::FenceWord::Stopping),
-        "a word the fence did not write reads as the unproven one"
-    );
+    // Content the fence did not write reads as the anchor, never clean.
+    let torn: [&[u8]; 4] = [b"not-a-word", b"", b"FLUSHED", b"flushed\n\nflushed"];
+    for bytes in torn {
+        std::fs::write(&path, bytes).expect("the torn file writes");
+        assert_eq!(read(&fence), Some(FenceWord::Stopping), "{bytes:?}");
+    }
+    // A file that is not text at all is a classification, never an error.
+    std::fs::write(&path, [0xFF, 0xFE]).expect("the binary file writes");
+    assert_eq!(read(&fence), Some(FenceWord::Stopping), "not text either");
 }
 
 #[test]
-fn the_state_store_round_trips_and_refuses_rot() {
-    let dir = temp_root();
-    std::fs::create_dir_all(&dir).expect("the state directory creates");
-    let mut store = FileStateStore::new(&dir.join("locks"));
-    assert_eq!(
-        store.load().expect("the load never refuses"),
-        None,
-        "an absent file is the cold-start answer"
-    );
-    let snapshot = uvrr::demo::StateSnapshot::default();
-    store.flush(&snapshot).expect("the eager flush lands");
-    let loaded = store.load().expect("the load never refuses");
-    assert_eq!(loaded, Some(snapshot), "the round trip is exact");
-
+fn the_state_store_round_trips_rotates_and_refuses() {
+    let dir = temp_dir();
     let path = dir.join("locks.state");
+    let mut store = FileStateStore::new(&dir.join("locks"));
+    let load = |store: &FileStateStore| store.load().expect("the load never refuses");
+    assert_eq!(load(&store), None, "an absent file is the cold start");
+    let empty = StateSnapshot::default();
+    store.flush(&empty).expect("the eager flush lands");
+    assert_eq!(load(&store), Some(empty), "the round trip is exact");
+
     let good = std::fs::read(&path).expect("the framed file reads");
-    // A torn tail: the length prefix disagrees with the bytes present.
-    std::fs::write(&path, &good[..good.len() - 3]).expect("the torn tail writes");
-    assert_eq!(
-        store.load().expect("the load never refuses"),
-        None,
-        "a torn tail is a refusal, never a half-decoded table"
-    );
-    // A rotted payload byte: the checksum refuses it.
-    let mut rotted = good.clone();
-    let last_payload = rotted.len() - 5;
-    rotted[last_payload] ^= 0xFF;
-    std::fs::write(&path, &rotted).expect("the rotted file writes");
-    assert_eq!(
-        store.load().expect("the load never refuses"),
-        None,
-        "a rotted checksum is a refusal"
-    );
-    // A version this build does not know.
-    let mut foreign = good;
-    foreign[0] = 99;
-    std::fs::write(&path, &foreign).expect("the foreign file writes");
-    assert_eq!(
-        store.load().expect("the load never refuses"),
-        None,
-        "an unknown version byte is a refusal"
-    );
+    // Every content problem is a refusal, never an `Err`.
+    let rot: [Rot; 4] = [
+        ("a torn tail", |b| b.truncate(b.len() - 3)),
+        ("a rotted payload byte", |b| {
+            *b.iter_mut().nth_back(4).unwrap() ^= 0xFF
+        }),
+        ("a rotted checksum byte", |b| *b.last_mut().unwrap() ^= 0xFF),
+        ("an unknown version", |b| b[0] = 99),
+    ];
+    for (reason, corrupt) in rot {
+        let mut bytes = good.clone();
+        corrupt(&mut bytes);
+        std::fs::write(&path, &bytes).expect("the rotted file writes");
+        assert_eq!(load(&store), None, "{reason} is a refusal");
+    }
+
+    // Rotation replaces the rotted file whole. An append would leave the
+    // length prefix disagreeing with the bytes present, which the reader
+    // refuses, so a load that succeeds IS the proof of replacement.
+    let lease = Lease {
+        lease_id: 4,
+        holder: ClientId { msb: 3, lsb: 1 },
+        expiry: 90,
+        window: LEASE_WINDOW,
+    };
+    let rotated = StateSnapshot {
+        locks: BTreeMap::from([(1, lease)]),
+    };
+    store.flush(&rotated).expect("the rotation lands");
+    assert_eq!(load(&store), Some(rotated), "it replaced the rotted one");
 }
 
-#[test]
-fn the_gossip_datagram_is_wire_valid() {
-    let frame = uvrr::demo::gossip_datagram(2, 7);
-    let message = Message::unpack_from(&frame).expect("the frame decodes back");
-    assert_eq!(message.header.tag, Tag::GossipRequest);
-    assert_eq!(message.header.view.era, Era(2));
-    assert_eq!(message.header.view.view.0, 7);
-    assert_eq!(message.header.slot, Slot::NONE);
-}
-
-/// The crash-reincarnation story, end to end.
 #[test]
 fn a_crash_at_a_named_commit_reincarnates_and_the_locks_survive() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-
     let client_a = ClientId { msb: 1, lsb: 1 };
     let client_b = ClientId { msb: 1, lsb: 2 };
     let client_c = ClientId { msb: 1, lsb: 3 };
 
     // Slot 3: the first grant.
-    let first = client_grant(&mut cluster, client_a, 1, 1);
-    let Response::Set {
-        granted: true,
-        lease: Some(granted),
-        ..
-    } = &first
-    else {
-        panic!("the first grant stands: {first:?}");
-    };
-    assert_eq!(granted.holder, client_a);
-    assert_eq!(granted.lease_id, 1);
+    let granted = granted_lease(&client_grant(&mut cluster, client_a, 1, 1), client_a);
+    assert_eq!(granted.lease_id, 1, "the first grant is generation one");
 
-    // Slot 4: a second grant on a second lock.
+    // Slot 4: a second grant, on a second lock.
     let second = client_grant(&mut cluster, client_b, 2, 2);
-    let Response::Set {
-        granted: true,
-        lease: Some(_),
-        ..
-    } = &second
-    else {
-        panic!("the second grant stands: {second:?}");
-    };
+    let (granted_it, _) = set_reply(&second);
+    assert!(granted_it, "the second grant stands");
 
-    // Slot 5: the observation. Every node applies it, and the chosen
-    // node fakes its death at exactly this commit: the hook fired, and
-    // the crash will write nothing.
+    // Slot 5: every node applies it, and the chosen node dies here.
     let observation = client_observation(&mut cluster, 1, 3);
-    assert!(
-        cluster.crash_fired.load(Ordering::SeqCst),
-        "the hook fired at slot 5 on the chosen node"
-    );
+    let fired = cluster.crash_fired.load(Ordering::SeqCst);
+    assert!(fired, "the hook fired at slot 5");
     for id in cluster.live_ids() {
-        assert_eq!(cluster.applied_slot(id, observation), Slot(5));
-        let bytes = cluster.applied_response(id, observation);
-        let reply: Response = serde_json::from_slice(&bytes).expect("the observation decodes");
-        let Response::Get {
-            lease: Some(lease), ..
-        } = &reply
-        else {
-            panic!("the lock stands before the crash: {reply:?}");
-        };
-        assert_eq!(lease, granted, "the lease is the same record everywhere");
+        let slot = cluster.applied(id, observation).slot;
+        assert_eq!(slot, Slot(5), "{id:?} applied it at five");
+        let reply = applied_reply(&cluster, id, observation);
+        assert_eq!(live_lease(&reply, id), granted, "one record everywhere");
     }
 
-    // The crash is a crash: no state file was ever written, and the
-    // fence still reads the anchor the first boot wrote.
+    // No state file was written, and the fence still reads the anchor.
     cluster.crash(n(2));
     assert!(!cluster.has_state_file(n(2)), "a crash never flushes state");
-    assert_eq!(
-        cluster.fence_word(n(2)).as_deref(),
-        Some("stopping"),
-        "the fence still reads the boot anchor"
-    );
+    let anchor = cluster.fence_word(n(2));
+    assert_eq!(anchor.as_deref(), Some("stopping"), "the anchor stands");
 
-    // The ledger remembers what the dead identity never answered: the
-    // leader's traffic to the crashed node stands un-acked, and the
-    // relay set for the ballot carries it, byte-identical.
-    let leader_view = cluster.node(n(0));
-    let ballot = (leader_view.era().0, 0);
-    assert!(
-        cluster.node(n(0)).unacknowledged() > 0,
-        "the dead node's traffic stands un-acked"
-    );
-    let relayed = cluster.node(n(0)).relay(ballot.0, ballot.1);
-    assert!(
-        relayed.iter().any(|datagram| datagram.to == n(2).0),
-        "the relay set carries the dead node's traffic"
-    );
+    // The ledger holds what the dead identity never answered.
+    let leader = cluster.node(n(0));
+    let unacked = leader.unacknowledged() > 0;
+    assert!(unacked, "the dead node's traffic stands");
+    let relayed = leader.relay(leader.era().0, 0);
+    let carried = relayed.iter().any(|d| d.to == n(2).0);
+    assert!(carried, "the relay set carries it");
 
-    // The survivors keep committing: one more grant the crashed node
-    // never heard.
+    // The survivors keep committing: one grant the dead node never heard.
     let _third = client_grant(&mut cluster, client_c, 3, 4);
     assert_eq!(cluster.committed(n(0)), Slot(6));
     assert_eq!(cluster.committed(n(1)), Slot(6));
@@ -728,107 +764,69 @@ fn a_crash_at_a_named_commit_reincarnates_and_the_locks_survive() {
     // The rebirth: the fence's verdict, the bump, the announcement.
     let bumped = cluster.reincarnate(n(2));
     assert_eq!(Some(bumped), n(2).next_life(), "the pair is one past");
-    assert!(
-        cluster.bus.sent(bumped, Tag::Reincarnation),
-        "the announcement went to the wire"
-    );
-    cluster.quiesce();
+    let announced = cluster.bus.sent(bumped, Tag::Reincarnation);
+    assert!(announced, "the announcement went out");
 
-    // The leader's ack and the first forced batch: era 2 committed, the
-    // old identity at weight 0, the new identity joined at 0, and the
-    // missed range pushed: the reborn node is current without a fetch.
+    // The first forced batch: era 2, the old identity at weight 0, the new
+    // one joined at 0, and the missed range pushed, so the reborn node is
+    // current without a fetch.
+    let batch = vec![(n(0), 1), (n(1), 1), (bumped, 0), (n(2), 0)];
     for id in [n(0), n(1)] {
         assert_eq!(cluster.era(id), Era(2), "{id:?} folded the first batch");
+        assert_eq!(cluster.membership(id), batch, "{id:?} holds that batch");
     }
-    assert_eq!(
-        cluster.membership(n(0)),
-        vec![(n(0), 1), (n(1), 1), (bumped, 0), (n(2), 0)],
-        "the first forced batch's membership"
-    );
-    assert_eq!(
-        cluster.committed(bumped),
-        cluster.committed(n(0)),
-        "the reborn node synced to the committed frontier"
-    );
+    let synced = cluster.committed(bumped) == cluster.committed(n(0));
+    assert!(synced, "the reborn node synced to the frontier");
     assert!(cluster.committed(n(0)) >= Slot(6), "the missed slot landed");
-    assert_eq!(
-        cluster.node(bumped).state_load(),
-        StateLoad::Distrusted,
-        "a crashed boot distrusts the state file, whatever sits in it"
-    );
+    let load = cluster.node(bumped).state_load();
+    assert_eq!(load, StateLoad::Distrusted, "the state file is distrusted");
 
-    // The next forced batch waits for the view change into era 2, then
-    // the re-announce, then the promotion era: the old identity evicted,
-    // the new identity at weight 1.
+    // Then the view change, the re-announce and the promotion era: the old
+    // identity evicted, the new one at weight 1.
     cluster.drive_view_change();
-    cluster.announce(bumped, n(2));
+    let pair = cluster.node_mut(bumped).announce(n(2));
+    assert!(pair.is_ok(), "the pair announces: {pair:?}");
+    cluster.quiesce();
+    let promoted = vec![(n(0), 1), (n(1), 1), (bumped, 1)];
     for id in [n(0), n(1)] {
-        assert_eq!(cluster.era(id), Era(3), "{id:?} folded the promotion era");
+        assert_eq!(cluster.era(id), Era(3), "{id:?} folded the promotion");
+        assert_eq!(cluster.membership(id), promoted, "{id:?} and its rejoin");
     }
-    assert_eq!(
-        cluster.membership(n(0)),
-        vec![(n(0), 1), (n(1), 1), (bumped, 1)],
-        "the rejoin is complete"
-    );
 
-    // The reborn node seats: a member at voting weight, ticking the
-    // full protocol.
+    // The reborn node seats, ticking the full protocol.
     cluster.drive_view_change();
-    assert_eq!(
-        cluster.status(bumped),
-        Status::Normal,
-        "the reincarnation completed"
-    );
+    let seated = cluster.status(bumped) == Status::Normal;
+    assert!(seated, "the reincarnation completed");
 
-    // The closing observation: the lock the story started with, read
-    // through the replication path. The survivors answer identically,
-    // and the lease is the record it always was: the locks are intact.
+    // The closing observation, read through the replication path: the
+    // survivors answer identically and the lease is intact.
     let closing = client_observation(&mut cluster, 1, 5);
     for id in [n(0), n(1)] {
-        let bytes = cluster.applied_response(id, closing);
-        let reply: Response = serde_json::from_slice(&bytes).expect("the closing reply decodes");
-        let Response::Get {
-            lease: Some(lease), ..
-        } = &reply
-        else {
-            panic!("the lock survived the crash and the rejoin at {id:?}: {reply:?}");
-        };
-        assert_eq!(lease, granted, "the lease is the record it always was");
+        let reply = applied_reply(&cluster, id, closing);
+        assert_eq!(live_lease(&reply, id), granted, "it survived at {id:?}");
     }
-    assert_eq!(
-        cluster.applied_response(n(0), closing),
-        cluster.applied_response(n(1), closing),
-        "the survivors answered identically"
-    );
+    let left = cluster.applied_response(n(0), closing);
+    let right = cluster.applied_response(n(1), closing);
+    assert_eq!(left, right, "the survivors answered identically");
 
-    // The reborn node is caught up on the protocol, and its answer is
-    // the least environment's honest one: the law distrusted its state
-    // file and nothing re-delivers what it had already applied, so its
-    // table is empty where the survivors hold the lease.
-    assert_eq!(cluster.committed(bumped), cluster.committed(n(0)));
-    let reborn_bytes = cluster.applied_response(bumped, closing);
-    let reborn_reply: Response =
-        serde_json::from_slice(&reborn_bytes).expect("the reborn reply decodes");
-    let Response::Get { lease: None, .. } = &reborn_reply else {
-        panic!("the reborn table is the law's empty one: {reborn_reply:?}");
-    };
+    // The reborn node's answer is the least environment's honest one: the
+    // law distrusted its state file and nothing re-delivers what it had
+    // applied, so its table is empty where the survivors hold the lease.
+    let caught_up = cluster.committed(bumped) == cluster.committed(n(0));
+    assert!(caught_up, "the reborn node is caught up");
+    let reborn = applied_reply(&cluster, bumped, closing);
+    let empty = matches!(&reborn, Response::Get { lease: None, .. });
+    assert!(empty, "the reborn table is the law's empty one: {reborn:?}");
 
-    // The lease clock is the replicated log's own progress: a bounded run
-    // of committed observations past the expiry retires the lease,
-    // identically on the survivors.
+    // The lease clock is the log's own progress: past the expiry, gone.
     while cluster.committed(n(0)).0 <= 3 + LEASE_WINDOW {
-        let filler = op_id(cluster.committed(n(0)).0 + 100);
-        let payload =
-            serde_json::to_vec(&json!({ "op": "get", "lock_id": 1 })).expect("the request encodes");
-        let primary = cluster.a_live_primary();
-        cluster.propose(primary, filler, &payload);
+        let filler = cluster.committed(n(0)).0 + 100;
+        client_observation(&mut cluster, 1, filler);
     }
     let expired = client_observation(&mut cluster, 1, 6);
     for id in [n(0), n(1)] {
-        let bytes = cluster.applied_response(id, expired);
-        let reply: Response = serde_json::from_slice(&bytes).expect("the expired reply decodes");
-        let Response::Get { lease: None, .. } = &reply else {
-            panic!("the lease expired on the replicated clock at {id:?}: {reply:?}");
-        };
+        let reply = applied_reply(&cluster, id, expired);
+        let gone = matches!(&reply, Response::Get { lease: None, .. });
+        assert!(gone, "expired on the replicated clock: {reply:?}");
     }
 }

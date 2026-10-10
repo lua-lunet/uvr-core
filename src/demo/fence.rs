@@ -36,7 +36,9 @@ pub enum FenceWord {
     Stopping,
     /// The halt has begun; the flush is unproven under it.
     Stopped,
-    /// The flush was forced over the halt; the clean word.
+    /// The flush was forced over the halt; the clean word. Only a stop
+    /// that completed its flush writes it, so only a stop can make a
+    /// boot clean.
     Flushed,
 }
 
@@ -86,6 +88,15 @@ pub trait BootFence: Send + Sync {
     /// first life). A file the fence did not write reads as
     /// [`FenceWord::Stopping`], the unproven word: the fence classifies
     /// the past conservatively and never invents the clean word.
+    ///
+    /// The clean word is the stop's to write and never the boot's. A boot
+    /// that reads [`FenceWord::Flushed`] refuses to start on it, and a
+    /// boot that reads anything else has no ground on which to promote
+    /// itself by writing it: the word vouches for a flush the boot did
+    /// not perform, and a fence that let a life buy its own clean verdict
+    /// would make the third word worthless. Every boot's own durable act
+    /// is the [`FenceWord::Stopping`] anchor, which says nothing and
+    /// proves nothing, which is exactly what a boot may claim.
     ///
     /// # Errors
     ///

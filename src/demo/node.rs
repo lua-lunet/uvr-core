@@ -465,6 +465,11 @@ impl DemoNode {
     /// is dry. The effects each input releases are taken and emitted
     /// inside the pass, so a pass ends with the transport dry and the
     /// node's applies walked.
+    ///
+    /// The outcomes come back in arrival order, one per delivered
+    /// datagram, so a refusal is attributable to the message that caused
+    /// it. The pass reads no clock and blocks on nothing: the only thing
+    /// that ends it is the transport reporting itself drained.
     pub fn run(&mut self) -> Vec<RunOutcome> {
         let mut outcomes = Vec::new();
         while let Some((from, message)) = self.transport.receive() {

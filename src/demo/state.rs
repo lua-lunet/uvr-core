@@ -19,9 +19,9 @@
 //! exactly once, lazily, behind the fence verdict's guard, never at boot.
 //!
 //! The in-tree implementation is [`FileStateStore`]: one file, written
-//! through the [`Disk`](crate::demo::Disk) seam (the demo has no
-//! `std::fs` call of its own), staged temp-file-then-rename so a torn
-//! write can never replace a good file, and framed as
+//! through the [`Disk`] seam (the demo has no `std::fs` call of its own),
+//! staged temp-file-then-rename so a torn write can never replace a good
+//! file, and framed as
 //!
 //! ```text
 //! version byte | payload length (u32 BE) | payload | checksum (u32 BE)

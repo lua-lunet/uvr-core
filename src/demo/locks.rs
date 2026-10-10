@@ -18,7 +18,9 @@
 //! what makes a rebuilt table bit-identical to the survivors'.
 //!
 //! A release names the holder and the lease id, so a stale release can
-//! never retire a newer lease. The break is the unconditional
+//! never retire a newer lease. A release that finds no live record
+//! reports that it released, because there was nothing a stale release
+//! could have retired either. The break is the unconditional
 //! force-release: whatever record stands is replaced by the bumped,
 //! cleared keeper record.
 
@@ -160,8 +162,9 @@ pub struct StateSnapshot {
     pub locks: BTreeMap<u64, Lease>,
 }
 
-/// The CAS lock table. Clone and default because a node constructs an
-/// empty table and installs a loaded snapshot wholesale.
+/// The CAS lock table: one client table, and the lock service's whole
+/// state. Clone and default because a node constructs an empty table and
+/// installs a loaded snapshot wholesale.
 #[derive(Clone, Default)]
 pub struct Service {
     locks: BTreeMap<u64, Lease>,
@@ -176,6 +179,26 @@ impl Service {
     /// operations at the same slots, so the stamps it produces are the
     /// survivors' stamps. `payload` is the committed operation's opaque
     /// bytes, decoded here and nowhere else.
+    ///
+    /// # The state machine
+    ///
+    /// One table serves every client, keyed by lock id: a client has no
+    /// table of its own and the machinery keeps nothing about it but the
+    /// records it stands behind. Four transitions, each legal over the
+    /// stored record exactly as stated:
+    ///
+    /// | request | legal when | the stored record afterwards |
+    /// |---|---|---|
+    /// | `Get` | always | unchanged |
+    /// | `Set` | no live record stands, or the live record's holder is this client, and the window is positive | the granted record: a renewal keeps the live record's generation, otherwise the stored generation is bumped |
+    /// | `Release` | no live record stands, or the live record's holder and generation are both this client | removed |
+    /// | `Break` | a stored record stands | the keeper: generation bumped, nil holder, `expiry: 0`, never live |
+    ///
+    /// A refused `Set` is not an error: the reply carries `granted:
+    /// false` beside the live incumbent, so a client reads the lock's
+    /// state out of the reply it already has and never has to ask twice.
+    /// A `Set` over a keeper record bumps once more, so a break costs the
+    /// next holder a generation exactly as a release does.
     ///
     /// # Errors
     ///
