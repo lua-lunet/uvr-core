@@ -30,23 +30,25 @@ ocr() { # $1 = pdf name (no ext), $2 = output suffix (default .md)
   echo "OCR  $1${2:-.md} ($(wc -c < "$out" | tr -d ' ') bytes)"
 }
 
-# born-digital
-for n in vr-revisited-2012 paxos-made-simple-2001 vertical-paxos-2009 \
+# born-digital. PDFs with a single copy of record in research/literature/
+# (vr-revisited-2012, fast18-alagappan-par, vr-1988-oki-liskov) are not
+# extracted here; their extracts stay in ../md/ from the original harvest.
+for n in paxos-made-simple-2001 vertical-paxos-2009 \
          smaug-2017-gorke-armknecht shraer2012-atc12-dynamic-reconfig \
          diskless-disc2017-recovering-shared-objects \
          lamport1998-part-time-parliament lamport2004-cheap-paxos \
          lamport2008-stoppable-paxos birman2010-virtually-synchronous \
          lorch2006-smart burrows2006-chubby-osdi06 \
          reconfiguring-a-state-machine-2010 \
-         osdi14-pillai-allfs sosp13-optimistic-crash fast18-alagappan-par \
-         diskless-tr16 disk-paxos-2003 corfu-tocs2013 zookeeper-atc10-hunt \
+         osdi14-pillai-allfs sosp13-optimistic-crash \
+         diskless-tr16 diskless-tr17-recovering-shared-objects disk-paxos-2003 corfu-tocs2013 zookeeper-atc10-hunt \
          fqi-2016-howard raft-atc14-ongaro lean4-cade28 \
          paper_ladder paper_exceeding paper_results; do
   txt "$n"
 done
 
 # scans
-for n in lampson-sturgis-1979 vr-1988-oki-liskov oki-dissertation-tr423; do
+for n in lampson-sturgis-1979 oki-dissertation-tr423; do
   ocr "$n"
 done
 

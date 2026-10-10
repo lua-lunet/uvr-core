@@ -2,7 +2,9 @@
 
 Every external work cited from `docs/*` or `paper/*`, pulled down on 2026-09-28,
 plus Raft (user instruction: "i have not mentioned RAFT … yet go get it").
-PDFs in `papers/`; extracted text in `md/`. Extraction: `pdftotext -layout`
+PDFs in `papers/` — where a paper also exists in `research/literature/`, the
+single copy of record lives there and only the extract is kept in `md/`.
+Extraction: `pdftotext -layout`
 for born-digital PDFs, `pdftoppm` + `tesseract` (300 dpi, eng) for scans.
 `paper.pdf` has both (`paper.md` = pdftotext, `paper.ocr.md` = tesseract).
 
@@ -31,6 +33,7 @@ for born-digital PDFs, `pdftoppm` + `tesseract` (300 dpi, eng) for scans.
 | `burrows2006` (OSDI '06) | burrows2006-chubby-osdi06.md | usenix.org legacy proceedings (title page verified) |
 | `par` (FAST'18) | fast18-alagappan-par.md | usenix.org |
 | `diskless` (UW TR 16-08-02) | diskless-tr16.md | syslab.cs.washington.edu |
+| `diskless` (UW TR 17-08-01, extended) | diskless-tr17-recovering-shared-objects.md | microsoft.com/research recovery-tr17 |
 | `corfu` (TOCS 2013) | corfu-tocs2013.md | malkhi.com (exact cited version) |
 | `zookeeper` (ATC'10) | zookeeper-atc10-hunt.md | usenix.org |
 | `lean4` (CADE 28) | lean4-cade28.md | lean-lang.org |

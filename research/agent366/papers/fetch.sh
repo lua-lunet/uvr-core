@@ -13,7 +13,9 @@ fetch() { # $1 = output name, $2 = url
     || { echo "FAIL $1"; rm -f "$1"; }
 }
 
-fetch vr-revisited-2012.pdf          https://pmg.csail.mit.edu/papers/vr-revisited.pdf
+# Papers with a single copy of record in research/literature/ (corpus, turner,
+# fast18) are not fetched here: vr-revisited-2012, fast18-alagappan-par,
+# vr-1988-oki-liskov.
 fetch paxos-made-simple-2001.pdf     https://lamport.azurewebsites.net/pubs/paxos-simple.pdf
 fetch vertical-paxos-2009.pdf        https://lamport.azurewebsites.net/pubs/vertical-paxos.pdf
 fetch smaug-2017-gorke-armknecht.pdf  https://arxiv.org/pdf/1708.04871
@@ -29,12 +31,11 @@ fetch reconfiguring-a-state-machine-2010.pdf "http://www-sop.inria.fr/members/Fr
 fetch osdi14-pillai-allfs.pdf        https://www.usenix.org/system/files/conference/osdi14/osdi14-paper-pillai.pdf
 fetch sosp13-optimistic-crash.pdf    https://research.cs.wisc.edu/adsl/Publications/optfs-sosp13.pdf
 fetch lampson-sturgis-1979.pdf       "https://www.microsoft.com/en-us/research/wp-content/uploads/1979/01/21.-Lampson-and-Sturgis-Crash-recovery-in-a-distributed-data-storage-system.pdf"
-fetch fast18-alagappan-par.pdf       https://www.usenix.org/system/files/conference/fast18/fast18-alagappan.pdf
 fetch diskless-tr16.pdf              https://syslab.cs.washington.edu/papers/diskless-tr16.pdf
+fetch diskless-tr17-recovering-shared-objects.pdf "https://www.microsoft.com/en-us/research/wp-content/uploads/2018/03/recovery-tr17.pdf"
 fetch disk-paxos-2003.pdf            https://lamport.azurewebsites.net/pubs/disk-paxos-disc.pdf
 fetch corfu-nsdi12.pdf               https://www.usenix.org/system/files/conference/nsdi12/nsdi12-final75.pdf
 fetch zookeeper-atc10-hunt.pdf       https://www.usenix.org/events/usenix10/tech/full_papers/Hunt.pdf
-fetch vr-1988-oki-liskov.pdf         https://www.cs.princeton.edu/courses/archive/fall11/cos518/papers/viewstamped.pdf
 fetch oki-dissertation-tr423.pdf     https://publications.csail.mit.edu/lcs/pubs/pdf/MIT-LCS-TR-423.pdf
 fetch fqi-2016-howard.pdf            https://arxiv.org/pdf/1608.06696
 fetch raft-atc14-ongaro.pdf          https://www.usenix.org/system/files/conference/atc14/atc14-paper-ongaro.pdf
