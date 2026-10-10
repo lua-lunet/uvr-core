@@ -131,7 +131,13 @@ jobs:
           # that artifact.
           cargo test --lib --bins --tests
           cargo test --all-features --lib --bins --tests
-          cargo test --doc
+          # The doc tests under every feature, so a feature-gated module's
+          # proofs are run rather than skipped, and the documentation build
+          # itself: a doc link that no longer resolves and an unescaped type
+          # placeholder are warnings rustdoc denies like any other, and no
+          # other lane notices either.
+          cargo test --all-features --doc
+          cargo doc --no-deps --all-features
           ! rg -n '#\[cfg\(test\)\]|mod tests' src
           ! rg -in 'paxos' src/ tests/
           # `item[0-9]` is scratch-work numbering: forbidden in the product

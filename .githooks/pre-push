@@ -30,7 +30,12 @@ cargo test --lib --bins --tests
 # push, and `--no-verify` remains the deliberate bypass.
 cargo test --all-features --lib --bins --tests
 
-cargo test --doc
+# The doc tests under every feature, so a feature-gated module's proofs are
+# run rather than skipped, and the documentation build itself: a doc link
+# that no longer resolves and an unescaped type placeholder are warnings
+# rustdoc denies like any other, and no other lane notices either.
+cargo test --all-features --doc
+cargo doc --no-deps --all-features
 
 # The Lean formalisation: the proofs are first-class deliverables and the
 # build is their gate. Warm runs are seconds on the developer's machine.

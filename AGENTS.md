@@ -105,12 +105,14 @@ You MUST use the skill gh-actions-poll if it is installed. You are FOBRIDDEN fro
   after it. A refusal that cannot show an operator why is a refusal nobody can act on.
 - The pre-push hook runs the verification gate before anything reaches the
   remote: activate once with `git config core.hooksPath .githooks`, and a push
-  that has not passed fmt, clippy, both test lanes, the doc tests and the
-  record checks aborts. `--no-verify` bypasses it and is a deliberate act.
+  that has not passed fmt, clippy, both test lanes, the doc tests, the
+  documentation build and the record checks aborts. `--no-verify` bypasses it
+  and is a deliberate act.
 - Warnings are errors everywhere: a proof that passes with a compile warning
   is no proof. The hook and the CI lanes export
   `RUSTFLAGS="-D warnings"` and `RUSTDOCFLAGS="-D warnings"`, so every lane
-  (fmt, clippy, both test lanes, the doc tests) treats any compile warning as
+  (fmt, clippy, both test lanes, the doc tests, the documentation build)
+  treats any compile warning as
   an error in any feature combination, and a pushed tree that emits one fails
   both. Local lanes run with the same exports; a warning that passes locally
   and fails the hook is a lane run without them.
