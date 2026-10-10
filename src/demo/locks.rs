@@ -17,33 +17,101 @@
 //! progress is the one clock every replica already agrees on, which is
 //! what makes a rebuilt table bit-identical to the survivors'.
 //!
-//! A release names the holder and the lease id, so a stale release can
-//! never retire a newer lease. A release that finds no live record
-//! reports that it released, because there was nothing a stale release
-//! could have retired either. The break is the unconditional
-//! force-release: whatever record stands is replaced by the bumped,
-//! cleared keeper record.
+//! A release names the holder and the lease id, so it is a compare-and-swap
+//! on (lock id, generation, holder) and a stale release can never retire a
+//! newer lease. A release that retires nothing reports that it retired
+//! nothing: with no live record standing there is nothing to compare
+//! against, so the swap does not apply, and the reply says so. It is an
+//! idempotent no-op, never a refusal and never an error.
+//!
+//! The generation belongs to the lock, not to the record standing for it: a
+//! release removes the record, and the lock's generation watermark outlives
+//! it, so no generation is ever handed out twice on the same lock. The
+//! watermark is part of the table's state and rides the snapshot, so a
+//! reloaded or rebuilt table is exactly as monotone as the one it resumes.
+//!
+//! The break is the unconditional force-release: whatever record stands is
+//! replaced by the bumped, cleared keeper record, and the bump spends a
+//! generation, so a break costs the next holder exactly what a release
+//! costs.
 
 use std::collections::BTreeMap;
 
+use serde::de::{Deserializer, Error as _};
 use serde::{Deserialize, Serialize};
 
 /// A lock client's identity: 128 bits the client assigns, opaque to the
 /// machinery. The table compares identities and nothing more.
+///
+/// The nil identity is unrepresentable outside this crate, by construction
+/// rather than by a check at the point of use: the halves are private, the
+/// lawful mint refuses the all-zero pair, and the door a request's client
+/// comes through refuses it as well. The nil identity exists here alone,
+/// as the keeper record's holder, and a keeper record is never live.
+///
+/// ```
+/// use uvrr::demo::ClientId;
+///
+/// assert!(ClientId::new(0, 0).is_none(), "the nil identity is not a client");
+/// assert!(ClientId::new(7, 1).is_some(), "a client is a pair the client named");
+/// ```
+///
+/// Neither the nil identity nor its halves are nameable from out here, so
+/// the doctest below is the compile-time half of the claim the mint states:
+///
+/// ```compile_fail
+/// use uvrr::demo::ClientId;
+///
+/// let nil = ClientId::nil();
+/// let parts = ClientId { msb: 0, lsb: 0 };
+/// ```
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClientId {
-    /// The identity's most significant 64 bits.
-    pub msb: u64,
-    /// The identity's least significant 64 bits.
-    pub lsb: u64,
+    msb: u64,
+    lsb: u64,
 }
 
 impl ClientId {
-    /// The nil identity, the cleared keeper record's holder: never live.
+    /// The lawful mint: the 128 bits the client chose, or none when the pair
+    /// is the nil identity. Zero is refused, not defaulted, so the nil
+    /// identity is a value this crate constructs and a client cannot name.
     #[must_use]
-    pub const fn nil() -> Self {
+    pub const fn new(msb: u64, lsb: u64) -> Option<Self> {
+        if msb == 0 && lsb == 0 {
+            return None;
+        }
+        Some(Self { msb, lsb })
+    }
+
+    /// The nil identity, the cleared keeper record's holder: never live, and
+    /// reachable only inside this crate. It is also the only identity a
+    /// reply can carry that no client holds, which is how an observer reads
+    /// a keeper record without being told.
+    pub(crate) const fn nil() -> Self {
         Self { msb: 0, lsb: 0 }
     }
+}
+
+/// The identity as a request carries it: the two halves, off the wire,
+/// strictly. A request's client is the one place the nil identity could
+/// arrive from outside, so the refusal is at this door.
+#[derive(Deserialize, Debug, Clone, Copy)]
+#[serde(deny_unknown_fields)]
+struct ClientBits {
+    msb: u64,
+    lsb: u64,
+}
+
+/// The door a request's `client` field comes through: the wire's own mint,
+/// which refuses the nil pair before the request exists. Nothing downstream
+/// checks again, because after this there is nothing to check.
+fn named_client<'de, D>(deserializer: D) -> Result<ClientId, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let bits = ClientBits::deserialize(deserializer)?;
+    ClientId::new(bits.msb, bits.lsb)
+        .ok_or_else(|| D::Error::custom("the nil client identity is not a client"))
 }
 
 /// The table's stored lease record and the reply's lease shape. Every
@@ -53,8 +121,12 @@ impl ClientId {
 pub struct Lease {
     /// The lease's generation. Bumped on every holder change and on a
     /// break, so a release naming an older generation retires nothing.
+    /// The lock's generation watermark outlives the record, so a grant
+    /// over a lock whose record was removed never answers a generation
+    /// the lock has already spent.
     pub lease_id: u64,
-    /// The holder the lease was granted to.
+    /// The holder the lease was granted to, or the keeper record's nil
+    /// placeholder, which no client holds and which is never live.
     pub holder: ClientId,
     /// The clock-stamped expiry: `clock + window` at the holder-changing
     /// set, on the demo's replicated clock. Requests never carry it.
@@ -77,7 +149,10 @@ pub enum Request {
     /// Ask for a grant or a same-holder renewal: the client names the
     /// window, never the expiry.
     Set {
-        /// The requesting client.
+        /// The requesting client. The nil identity is not one a request
+        /// can carry: this field is minted through the door that refuses
+        /// it.
+        #[serde(deserialize_with = "named_client")]
         client: ClientId,
         /// The lock to take.
         lock_id: u64,
@@ -87,7 +162,9 @@ pub enum Request {
     },
     /// Retire the lease the client holds, named by its generation.
     Release {
-        /// The releasing client.
+        /// The releasing client, through the same door: a release names a
+        /// holder, and the nil identity holds nothing.
+        #[serde(deserialize_with = "named_client")]
         client: ClientId,
         /// The lock to release.
         lock_id: u64,
@@ -131,9 +208,14 @@ pub enum Response {
     Release {
         /// The lock named.
         lock_id: u64,
-        /// Whether the named lease was retired.
+        /// Whether the named lease was retired. `false` is the truth on
+        /// every path that retires nothing: no live record stood, the
+        /// holder is not this client, or the named generation is stale. A
+        /// release that retires nothing is a no-op that says so, never a
+        /// refusal and never an error.
         released: bool,
-        /// The live incumbent when the release failed.
+        /// The live incumbent when the release retired nothing, and none
+        /// when it retired the lease or when nothing stood.
         lease: Option<Lease>,
         /// The replicated clock the reply executed at.
         executed_at: u64,
@@ -154,12 +236,19 @@ pub enum Response {
 }
 
 /// The table's whole durable state as one serialisable value: every lock
-/// id's stored record. The state seam flushes and loads this payload.
+/// id's stored record, and every lock id's generation watermark. The state
+/// seam flushes and loads this payload.
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq)]
 pub struct StateSnapshot {
     /// The table itself, ordered so the encoded bytes are a function of
     /// the state and never of the map's insertion history.
     pub locks: BTreeMap<u64, Lease>,
+    /// Every lock's generation watermark: the highest generation the lock
+    /// has ever handed out or reserved, which outlives the record a
+    /// release removes. A snapshot without the watermark is a decode
+    /// refusal, never a defaulted empty one: a resumed table that read it
+    /// as absent would hand out a generation twice.
+    pub generations: BTreeMap<u64, u64>,
 }
 
 /// The CAS lock table: one client table, and the lock service's whole
@@ -168,6 +257,7 @@ pub struct StateSnapshot {
 #[derive(Clone, Default)]
 pub struct Service {
     locks: BTreeMap<u64, Lease>,
+    generations: BTreeMap<u64, u64>,
 }
 
 impl Service {
@@ -190,8 +280,8 @@ impl Service {
     /// | request | legal when | the stored record afterwards |
     /// |---|---|---|
     /// | `Get` | always | unchanged |
-    /// | `Set` | no live record stands, or the live record's holder is this client, and the window is positive | the granted record: a renewal keeps the live record's generation, otherwise the stored generation is bumped |
-    /// | `Release` | no live record stands, or the live record's holder and generation are both this client | removed |
+    /// | `Set` | no live record stands, or the live record's holder is this client, and the window is positive | the granted record: a renewal keeps the live record's generation, otherwise the lock's next generation, one past its watermark |
+    /// | `Release` | the live record's holder and generation are both this client | removed; the lock's watermark stands |
     /// | `Break` | a stored record stands | the keeper: generation bumped, nil holder, `expiry: 0`, never live |
     ///
     /// A refused `Set` is not an error: the reply carries `granted:
@@ -202,9 +292,11 @@ impl Service {
     ///
     /// # Errors
     ///
-    /// A payload that does not decode into a [`Request`]. The reply bytes
-    /// are returned on success, and the reply itself never fails to
-    /// encode.
+    /// A payload that does not decode into a [`Request`], which includes a
+    /// request naming the nil client identity: the identity is not
+    /// constructible on the wire either, so such a request never reaches
+    /// the table. The reply bytes are returned on success, and the reply
+    /// itself never fails to encode.
     pub fn execute(&mut self, clock: u64, payload: &[u8]) -> Result<Vec<u8>, serde_json::Error> {
         let request: Request = serde_json::from_slice(payload)?;
         let response = match request {
@@ -244,9 +336,13 @@ impl Service {
                 lease_id,
             } => {
                 let held = self.live(clock, lock_id);
+                // The compare-and-swap: a live record whose holder and
+                // generation are this client, and nothing else. With no
+                // live record there is nothing to compare against, so the
+                // swap does not apply and the reply reports the truth.
                 let released = held
                     .as_ref()
-                    .is_none_or(|lease| lease.holder == client && lease.lease_id == lease_id);
+                    .is_some_and(|lease| lease.holder == client && lease.lease_id == lease_id);
                 if released {
                     self.locks.remove(&lock_id);
                 }
@@ -265,6 +361,11 @@ impl Service {
                         expiry: 0,
                         window: 0,
                     };
+                    // The bump is spent the moment it is reserved: the
+                    // watermark carries it, so the next holder of this
+                    // lock pays for it even if the keeper is later
+                    // removed.
+                    self.generations.insert(lock_id, keeper.lease_id);
                     self.locks.insert(lock_id, keeper.clone());
                     Response::Break {
                         lock_id,
@@ -284,9 +385,10 @@ impl Service {
         serde_json::to_vec(&response)
     }
 
-    /// The grant or same-holder renewal, as the stored record. The
-    /// generation is bumped on every holder change; a renewal keeps the
-    /// incumbent's generation, the same lease extended.
+    /// The grant or same-holder renewal, as the stored record. A renewal
+    /// keeps the incumbent's generation, the same lease extended. A grant
+    /// over no live record takes the lock's next generation: one past the
+    /// watermark, which the record a release removes never carried.
     fn grant(
         &mut self,
         clock: u64,
@@ -295,10 +397,10 @@ impl Service {
         window: u64,
         held: Option<Lease>,
     ) -> Lease {
-        let prior = self.locks.get(&lock_id).cloned();
+        let spent = self.generations.get(&lock_id).copied().unwrap_or(0);
         let lease_id = match &held {
             Some(incumbent) => incumbent.lease_id,
-            None => prior.map_or(1, |prior| prior.lease_id.saturating_add(1)),
+            None => spent.saturating_add(1),
         };
         let lease = Lease {
             lease_id,
@@ -306,6 +408,7 @@ impl Service {
             expiry: clock.saturating_add(window),
             window,
         };
+        self.generations.insert(lock_id, lease_id);
         self.locks.insert(lock_id, lease.clone());
         lease
     }
@@ -319,13 +422,14 @@ impl Service {
             .filter(|lease| lease.expiry > clock)
     }
 
-    /// Whether the table holds no record at all. The lazy-load seam's
-    /// first clause: a table with anything in it was materialised by the
-    /// regular path (or by an earlier load), so a load now would overwrite
-    /// state the node already holds.
+    /// Whether the table holds nothing at all: no record and no watermark.
+    /// The lazy-load seam's first clause: a table with anything in it was
+    /// materialised by the regular path (or by an earlier load), so a load
+    /// now would overwrite state the node already holds, the watermark
+    /// included.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.locks.is_empty()
+        self.locks.is_empty() && self.generations.is_empty()
     }
 
     /// The table's whole state as one serialisable value, captured at the
@@ -334,6 +438,7 @@ impl Service {
     pub fn snapshot(&self) -> StateSnapshot {
         StateSnapshot {
             locks: self.locks.clone(),
+            generations: self.generations.clone(),
         }
     }
 
@@ -343,7 +448,12 @@ impl Service {
     /// a merge against whatever the node holds would fabricate records
     /// the stop never wrote. The seam calls this on the lazy-load path
     /// only, against a table it has just established is empty.
+    ///
+    /// The watermarks install with the records: a resumed table that
+    /// dropped them would hand out a generation the lock had already
+    /// spent.
     pub fn restore(&mut self, snapshot: StateSnapshot) {
         self.locks = snapshot.locks;
+        self.generations = snapshot.generations;
     }
 }

@@ -13,7 +13,8 @@ use std::collections::{BTreeMap, VecDeque};
 use std::rc::Rc;
 
 use uvrr::demo::{
-    ClientId, DemoNode, FileBootFence, FileStateStore, NoOpHook, Request, Response, Transport,
+    ClientId, DemoNode, FileBootFence, FileStateStore, NoOpHook, Request, Response, Service,
+    Transport,
 };
 use uvrr::ids::{CrashCounter, Era, NodeId, Operation, OperationId, Slot, SystemId};
 use uvrr::message::Message;
@@ -28,6 +29,12 @@ fn n(id: u32) -> NodeId {
         SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
         CrashCounter::new(1).expect("one is non-zero"),
     )
+}
+
+/// A client identity through the public mint, which refuses the nil pair:
+/// every client here is one a real client could have named.
+fn client(msb: u64, lsb: u64) -> ClientId {
+    ClientId::new(msb, lsb).expect("a test client is not the nil identity")
 }
 
 #[derive(Clone)]
@@ -217,7 +224,11 @@ impl Cluster {
     fn bootstrap(&mut self) {
         self.tick_all();
         for id in self.live_ids() {
-            assert_eq!(self.node(id).status(), Status::Normal, "{id:?} boots normal");
+            assert_eq!(
+                self.node(id).status(),
+                Status::Normal,
+                "{id:?} boots normal"
+            );
         }
     }
 
@@ -312,8 +323,8 @@ fn granted_lease(replies: &[Response]) -> uvrr::demo::Lease {
 fn a_lease_generation_is_never_reused_after_the_holder_releases_the_lock() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    let first_holder = ClientId { msb: 7, lsb: 1 };
-    let second_holder = ClientId { msb: 7, lsb: 2 };
+    let first_holder = client(7, 1);
+    let second_holder = client(7, 2);
 
     // A takes lock 1. The first grant on the lock answers generation 1.
     let first = granted_lease(&cluster.lock_request(
@@ -324,7 +335,10 @@ fn a_lease_generation_is_never_reused_after_the_holder_releases_the_lock() {
         },
         1,
     ));
-    assert_eq!(first.lease_id, 1, "the first grant on the lock is generation 1");
+    assert_eq!(
+        first.lease_id, 1,
+        "the first grant on the lock is generation 1"
+    );
 
     // A releases it, naming the generation A holds. The release stands.
     let released = cluster.lock_request(
@@ -357,6 +371,47 @@ fn a_lease_generation_is_never_reused_after_the_holder_releases_the_lock() {
         "the generation is bumped on every holder change, so a release \
          naming generation 1 cannot retire B's lease"
     );
+
+    // Which is the law the bump exists for: A's late release, still
+    // naming generation 1, retires nothing and reports that it retired
+    // nothing. The generation it names is spent, so it is not a lease.
+    let stale = cluster.lock_request(
+        &Request::Release {
+            client: first_holder,
+            lock_id: 1,
+            lease_id: first.lease_id,
+        },
+        4,
+    );
+    for reply in &stale {
+        let Response::Release {
+            released, lease, ..
+        } = reply
+        else {
+            panic!("the reply is a release: {reply:?}");
+        };
+        assert!(
+            !*released,
+            "a stale release retires nothing and says so: {reply:?}"
+        );
+        assert_eq!(
+            *lease,
+            Some(second.clone()),
+            "and the incumbent comes back: {reply:?}"
+        );
+    }
+
+    // And B's lease is exactly where it was.
+    for reply in &cluster.lock_request(&Request::Get { lock_id: 1 }, 5) {
+        let Response::Get { lease, .. } = reply else {
+            panic!("the reply is a read: {reply:?}");
+        };
+        assert_eq!(
+            *lease,
+            Some(second.clone()),
+            "the stale release left B's lease standing: {reply:?}"
+        );
+    }
 }
 
 /// The locks demo states of `Response::Release` that it answers "whether
@@ -367,7 +422,7 @@ fn a_lease_generation_is_never_reused_after_the_holder_releases_the_lock() {
 fn a_release_of_a_lock_no_client_holds_reports_that_nothing_was_retired() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    let stranger = ClientId { msb: 9, lsb: 1 };
+    let stranger = client(9, 1);
 
     // No grant was ever proposed for lock 7, so no lease stands on it.
     let released = cluster.lock_request(
@@ -395,47 +450,99 @@ fn a_release_of_a_lock_no_client_holds_reports_that_nothing_was_retired() {
         );
         assert_eq!(*lease, None, "nothing stands and nothing stood");
     }
-}
 
-/// `ClientId::nil` is documented as "the cleared keeper record's holder:
-/// never live". A set request naming the nil identity must therefore not
-/// be granted a lease that any replica reports as live.
-#[test]
-fn the_nil_client_identity_is_never_granted_a_live_lease() {
-    let mut cluster = Cluster::provision(3);
-    cluster.bootstrap();
-    let holder = ClientId { msb: 7, lsb: 1 };
-
-    let replies = cluster.lock_request(
-        &Request::Set {
-            client: ClientId::nil(),
-            lock_id: 3,
-            window: 32,
+    // The no-op is idempotent: the second release finds the same absence,
+    // retires nothing, and reports the same truth.
+    for reply in &cluster.lock_request(
+        &Request::Release {
+            client: stranger,
+            lock_id: 7,
+            lease_id: 1,
         },
-        1,
-    );
-    for reply in &replies {
-        let Response::Set {
-            granted, lease, ..
-        } = reply
-        else {
-            panic!("the reply is a grant: {reply:?}");
-        };
+        2,
+    ) {
         assert!(
-            !*granted,
-            "the nil identity is the keeper record's holder and is never live: {reply:?}"
+            matches!(
+                reply,
+                Response::Release {
+                    released: false,
+                    lease: None,
+                    ..
+                }
+            ),
+            "repeating the no-op changes nothing and still reports it: {reply:?}"
         );
-        assert_eq!(*lease, None, "no lease stands on lock 3");
     }
 
-    // And the lock is still there for a real client to take.
+    // And it spent nothing: the lock's first grant is still the first
+    // generation, because a release that retired nothing was not a
+    // holder change.
+    let first = granted_lease(&cluster.lock_request(
+        &Request::Set {
+            client: stranger,
+            lock_id: 7,
+            window: 32,
+        },
+        3,
+    ));
+    assert_eq!(first.lease_id, 1, "the no-op release spent no generation");
+}
+
+/// The locks demo documents `ClientId::nil` as "the cleared keeper
+/// record's holder: never live". Outside the crate that claim is now
+/// unrepresentability rather than a check at the point of use, and the
+/// proof is the type's: the public mint refuses the all-zero pair, the
+/// wire decode refuses a request that carries it, and the lock the
+/// refused request named is there for the first real client at the lock's
+/// first generation.
+#[test]
+fn the_nil_client_identity_is_never_granted_a_live_lease() {
+    // The mint: the all-zero pair is not a client identity, and the mint is
+    // the only public way to name one.
+    assert!(
+        ClientId::new(0, 0).is_none(),
+        "the nil identity is the keeper record's placeholder and is never a client"
+    );
+
+    // The wire: the request that carries the nil identity does not decode,
+    // so it never becomes a request at all. The table is untouched by the
+    // refusal, which the next operation's own generation shows.
+    let mut table = Service::default();
+    let nil = br#"{"op":"set","client":{"msb":0,"lsb":0},"lock_id":3,"window":32}"#;
+    let refused = table.execute(3, nil);
+    assert!(
+        refused.is_err(),
+        "the nil identity cannot arrive on the wire: {refused:?}"
+    );
+    let real = br#"{"op":"set","client":{"msb":7,"lsb":1},"lock_id":3,"window":32}"#;
+    let bytes = table.execute(3, real).expect("a lawful client decodes");
+    let Response::Set {
+        granted,
+        lease: Some(lease),
+        ..
+    } = serde_json::from_slice(&bytes).expect("the reply decodes")
+    else {
+        panic!("a granted reply carries the lease: {bytes:?}");
+    };
+    assert!(granted, "the lawful client is granted: {bytes:?}");
+    assert_eq!(
+        lease.lease_id, 1,
+        "the refused request spent nothing on the lock"
+    );
+
+    // And the committed path agrees: every replica grants the real client
+    // the lock's first generation, and no replica reports a lease for the
+    // nil identity, because none of them can be sent one.
+    let mut cluster = Cluster::provision(3);
+    cluster.bootstrap();
+    let holder = client(7, 1);
     let taken = granted_lease(&cluster.lock_request(
         &Request::Set {
             client: holder,
             lock_id: 3,
             window: 32,
         },
-        2,
+        1,
     ));
     assert_eq!(taken.holder, holder, "the real client takes it");
     assert_eq!(taken.lease_id, 1, "and it is the lock's first generation");
@@ -452,8 +559,8 @@ fn a_duplicated_and_reordered_datagram_stream_commits_one_identical_history() {
     let mut cluster = Cluster::provision(3);
     cluster.bus.set_chaos(true);
     cluster.bootstrap();
-    let holder = ClientId { msb: 7, lsb: 1 };
-    let second = ClientId { msb: 7, lsb: 2 };
+    let holder = client(7, 1);
+    let second = client(7, 2);
 
     cluster.send_request(
         &Request::Set {

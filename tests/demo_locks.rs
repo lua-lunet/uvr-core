@@ -49,6 +49,12 @@ fn op_id(lsb: u64) -> OperationId {
     OperationId { msb: 0, lsb }
 }
 
+/// A client identity through the public mint, which refuses the nil pair:
+/// every client here is one a real client could have named.
+fn client(msb: u64, lsb: u64) -> ClientId {
+    ClientId::new(msb, lsb).expect("a test client is not the nil identity")
+}
+
 /// The in-memory transport: one shared bus, explicit queues, no loss and
 /// no reordering, with a route log that makes a fan-out assertable.
 #[derive(Clone)]
@@ -531,8 +537,8 @@ fn the_join_gossip_is_wire_valid_and_fans_out_to_every_member() {
 fn the_graceful_stop_flushes_state_and_lands_the_clean_word() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    let client = ClientId { msb: 2, lsb: 1 };
-    let granted = granted_lease(&client_grant(&mut cluster, client, 1, 1), client);
+    let holder = client(2, 1);
+    let granted = granted_lease(&client_grant(&mut cluster, holder, 1, 1), holder);
     // A backup stops: halt, eager flush in the foreground, clean word.
     cluster.node_mut(n(2)).stop().expect("the stop flushes");
     let word = cluster.fence_word(n(2));
@@ -542,8 +548,12 @@ fn the_graceful_stop_flushes_state_and_lands_the_clean_word() {
     let dir = cluster.dir_of(n(2));
     let store = FileStateStore::new(&dir.join("locks"));
     let snapshot = store.load().expect("no refusal").expect("it is there");
-    let one = BTreeMap::from([(1, granted)]);
+    let one = BTreeMap::from([(1, granted.clone())]);
     assert_eq!(snapshot.locks, one, "the flushed table is one lease");
+    // The generation watermark is flushed with it: a table that resumed
+    // without it would hand the lock's first generation out a second time.
+    let watermark = BTreeMap::from([(1, granted.lease_id)]);
+    assert_eq!(snapshot.generations, watermark, "the watermark flushed too");
     // The clean word is the stop's alone: a boot that reads it refuses.
     let bus = cluster.bus.clone();
     let boot = DemoNode::reincarnate(
@@ -564,8 +574,8 @@ fn the_graceful_stop_flushes_state_and_lands_the_clean_word() {
 /// must produce.
 #[test]
 fn the_lock_tables_transitions_reply_as_the_vocabulary_states() {
-    let holder = ClientId { msb: 7, lsb: 1 };
-    let stranger = ClientId { msb: 7, lsb: 2 };
+    let holder = client(7, 1);
+    let stranger = client(7, 2);
     let mut table = Service::default();
     // One committed operation at the slot it applies at, and its reply.
     let mut at = |clock: u64, body: Value| -> Response {
@@ -573,13 +583,19 @@ fn the_lock_tables_transitions_reply_as_the_vocabulary_states() {
         let bytes = table.execute(clock, &payload).expect("the table executes");
         serde_json::from_slice(&bytes).expect("the reply decodes")
     };
-    // The keeper a break leaves behind: bumped, nil holder, never live.
-    let keeper = |g: u64| Lease {
-        lease_id: g,
-        holder: ClientId::nil(),
-        expiry: 0,
-        window: 0,
+    // The keeper a break leaves behind: bumped, nil holder, never live. The
+    // nil holder is not constructible out here, so the keeper is asserted
+    // as the bytes it answers with.
+    let keeper = |g: u64| -> Value {
+        json!({
+            "lease_id": g,
+            "holder": { "msb": 0, "lsb": 0 },
+            "expiry": 0,
+            "window": 0
+        })
     };
+    let answering =
+        |lease: &Option<Lease>| -> Value { serde_json::to_value(lease).expect("a lease encodes") };
 
     // Generation one, stamped clock plus window on the replicated clock.
     let first = at(3, set_body(holder, 1, LEASE_WINDOW));
@@ -610,24 +626,29 @@ fn the_lock_tables_transitions_reply_as_the_vocabulary_states() {
     let wrong = at(11, release_body(stranger, 1, renewed.lease_id));
     assert_eq!(release_reply(&wrong), keeps, "nor by another client");
 
-    // The holder's own generation retires it, and a free table is no
-    // failure either: there was nothing to retire.
+    // The holder's own generation retires it, and the release that finds
+    // nothing after it retires nothing and says so: the swap had nothing
+    // to compare against. It is a no-op, never a failure.
     let mine = at(13, release_body(holder, 1, renewed.lease_id));
-    let none = (true, None);
-    assert_eq!(release_reply(&mine), none, "the holder retires it");
+    assert_eq!(release_reply(&mine), (true, None), "the holder retires it");
     let free = at(15, release_body(holder, 1, renewed.lease_id));
-    let none = (true, None);
-    assert_eq!(release_reply(&free), none, "a free lock is no failure");
-    let vacant = at(17, break_body(1));
-    assert_eq!(break_reply(&vacant), (false, None), "and nothing to break");
+    let quiet = at(17, break_body(1));
+    assert_eq!(
+        (release_reply(&free), break_reply(&quiet)),
+        ((false, None), (false, None)),
+        "a free lock retires nothing and has nothing to break"
+    );
 
     // The break is unconditional, and bumps the keeper it finds again.
     let body = set_body(holder, 1, LEASE_WINDOW);
     let held_lease = granted_lease(&at(19, body.clone()), holder);
     let (broke, kept) = break_reply(&at(21, break_body(1)));
     assert!(broke, "a record stood to break");
-    let one = keeper(held_lease.lease_id + 1);
-    assert_eq!(kept, Some(one), "the bumped keeper is what stands");
+    assert_eq!(
+        answering(&kept),
+        json!(keeper(held_lease.lease_id + 1)),
+        "the bumped keeper is what stands"
+    );
     let live = Response::Get {
         lock_id: 1,
         lease: None,
@@ -635,13 +656,31 @@ fn the_lock_tables_transitions_reply_as_the_vocabulary_states() {
     };
     assert_eq!(at(22, get_body(1)), live, "the keeper is never live");
     let (_, again) = break_reply(&at(23, break_body(1)));
-    let two = keeper(held_lease.lease_id + 2);
-    assert_eq!(again, Some(two), "the next break bumps the keeper again");
+    assert_eq!(
+        answering(&again),
+        json!(keeper(held_lease.lease_id + 2)),
+        "the next break bumps the keeper again"
+    );
 
     // A grant over a keeper bumps once more, as a release does.
     let taken = granted_lease(&at(24, body), holder);
     let bumped = held_lease.lease_id + 3;
     assert_eq!(taken.lease_id, bumped, "the keeper was bumped once more");
+
+    // And the watermark is the lock's: a release after all of that spends
+    // no generation of its own, and the next grant is the next one past
+    // everything the lock has ever handed out.
+    assert_eq!(
+        release_reply(&at(25, release_body(holder, 1, taken.lease_id))),
+        (true, None),
+        "the holder retires the lease it holds"
+    );
+    let after = granted_lease(&at(26, set_body(holder, 1, LEASE_WINDOW)), holder);
+    assert_eq!(
+        after.lease_id,
+        bumped + 1,
+        "the grant after a release is past every generation the lock spent"
+    );
 }
 
 #[test]
@@ -703,12 +742,13 @@ fn the_state_store_round_trips_rotates_and_refuses() {
     // refuses, so a load that succeeds IS the proof of replacement.
     let lease = Lease {
         lease_id: 4,
-        holder: ClientId { msb: 3, lsb: 1 },
+        holder: client(3, 1),
         expiry: 90,
         window: LEASE_WINDOW,
     };
     let rotated = StateSnapshot {
         locks: BTreeMap::from([(1, lease)]),
+        generations: BTreeMap::from([(1, 4)]),
     };
     store.flush(&rotated).expect("the rotation lands");
     assert_eq!(load(&store), Some(rotated), "it replaced the rotted one");
@@ -718,9 +758,9 @@ fn the_state_store_round_trips_rotates_and_refuses() {
 fn a_crash_at_a_named_commit_reincarnates_and_the_locks_survive() {
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
-    let client_a = ClientId { msb: 1, lsb: 1 };
-    let client_b = ClientId { msb: 1, lsb: 2 };
-    let client_c = ClientId { msb: 1, lsb: 3 };
+    let client_a = client(1, 1);
+    let client_b = client(1, 2);
+    let client_c = client(1, 3);
 
     // Slot 3: the first grant.
     let granted = granted_lease(&client_grant(&mut cluster, client_a, 1, 1), client_a);

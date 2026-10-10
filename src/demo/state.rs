@@ -50,7 +50,11 @@ use crate::demo::locks::StateSnapshot;
 /// changes; a reader that does not recognise the byte refuses the file.
 /// There is no conversion and no fallback: this crate is alpha and
 /// unreleased, and old files are deleted.
-const FORMAT_VERSION: u8 = 1;
+///
+/// Byte two carries the lock table's generation watermarks beside its
+/// records. Byte one did not, and a table that read a byte-one file as
+/// carrying no watermark would hand out a generation twice.
+const FORMAT_VERSION: u8 = 2;
 
 /// The lock table's persistence contract: flush the whole table on the
 /// shutdown path, load it back on the regular path.
