@@ -206,7 +206,7 @@ telescoping argument combines those obligations with a common response set;
 it does not attribute a datagram-atomicity theorem to either source.
 
 The standard-library Python checker
-\path{research/weighted-reachability/check_fuse.py} enumerates all identity
+\path{study/weighted-reachability/check_fuse.py} enumerates all identity
 subsets, including zero-weight identities. It checks both three-voter
 boundaries (64 qualifying cross-quorum pairs), all six five-voter boundaries
 (5,760 pairs), and every initial quorum excluding the retired identity
@@ -214,7 +214,7 @@ boundaries (64 qualifying cross-quorum pairs), all six five-voter boundaries
 It also checks 29,690 ordered endpoint/response-set combinations for all four
 identity profiles in $\{0,1,2\}^4$, covering 99,352 unit edges of the monotone
 construction. The equal-total swap is a required negative control. Its output
-is \path{research/weighted-reachability/generated/fuse-summary.json}.
+is \path{study/weighted-reachability/generated/fuse-summary.json}.
 
 These are exhaustive statements about their finite domains. The inductive
 argument supplies arbitrary finite schedule length. Lean checks the formal
@@ -227,7 +227,7 @@ finite arithmetic domain already exhausted by an independent checker, but
 each must test the layer for which it supplies evidence.
 
 To replay the arithmetic from the repository root, run \code{python3} on
-\path{research/weighted-reachability/check_fuse.py}.
+\path{study/weighted-reachability/check_fuse.py}.
 The Lean module is \path{UVRR/Fuse.lean}; its proof
 generation and kernel-check evidence are recorded beside the proof ladder.
 

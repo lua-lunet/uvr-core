@@ -40,39 +40,39 @@ MODEL = "jev-1.13"
 HTTP_TIMEOUT = 30
 
 # Scraped primary sources: key -> verbatim OCR or fetched text of the cited
-# work, consolidated under research/literature/sources/ (one file per bibitem
-# key; see research/literature/citation-check/ for run reports). The
+# work, consolidated under study/sources/ (one file per bibitem
+# key; see study/citation-check-report.md for the run report). The
 # `artifact` key cites this repository itself; the Lean proof artifact's
 # README is the quoted source.
 SOURCES = {
-    "vr": "research/literature/sources/vr.md",
-    "vrr": "research/literature/sources/vrr.md",
-    "diskless": "research/literature/sources/diskless.md",
-    "par": "research/literature/sources/par.md",
-    "pms": "research/literature/sources/pms.md",
-    "diskpaxos": "research/literature/sources/diskpaxos.md",
-    "allfs": "research/literature/sources/allfs.md",
-    "optimistic-crash": "research/literature/sources/optimistic-crash.md",
-    "turner": "research/literature/sources/turner.md",
-    "motivation": "research/literature/sources/motivation.md",
-    "corfu": "research/literature/sources/corfu.md",
-    "zookeeper": "research/literature/sources/zookeeper.md",
-    "etcd-guarantees": "research/literature/sources/etcd-guarantees.md",
-    "etcd-hardware": "research/literature/sources/etcd-hardware.md",
-    "etcd-embed": "research/literature/sources/etcd-embed.md",
-    "netdisk": "research/literature/sources/netdisk.md",
-    "votingweights": "research/literature/sources/votingweights.md",
-    "reconfig-sm": "research/literature/sources/reconfig-sm.md",
-    "vertical-paxos": "research/literature/sources/vertical-paxos.md",
+    "vr": "study/sources/vr.md",
+    "vrr": "study/sources/vrr.md",
+    "diskless": "study/sources/diskless.md",
+    "par": "study/sources/par.md",
+    "pms": "study/sources/pms.md",
+    "diskpaxos": "study/sources/diskpaxos.md",
+    "allfs": "study/sources/allfs.md",
+    "optimistic-crash": "study/sources/optimistic-crash.md",
+    "turner": "study/sources/turner.md",
+    "motivation": "study/sources/motivation.md",
+    "corfu": "study/sources/corfu.md",
+    "zookeeper": "study/sources/zookeeper.md",
+    "etcd-guarantees": "study/sources/etcd-guarantees.md",
+    "etcd-hardware": "study/sources/etcd-hardware.md",
+    "etcd-embed": "study/sources/etcd-embed.md",
+    "netdisk": "study/sources/netdisk.md",
+    "votingweights": "study/sources/votingweights.md",
+    "reconfig-sm": "study/sources/reconfig-sm.md",
+    "vertical-paxos": "study/sources/vertical-paxos.md",
     "artifact": "formal/uvrr-lean/README.md",
-    "lean4": "research/literature/sources/lean4.md",
-    "nopaxos": "research/literature/sources/nopaxos.md",
-    "curp": "research/literature/sources/curp.md",
-    "rfc9000": "research/literature/sources/rfc9000.md",
-    "rfc9114": "research/literature/sources/rfc9114.md",
-    "ewd720": "research/literature/sources/ewd720.md",
-    "ewd1215": "research/literature/sources/ewd1215.md",
-    "hoare1969": "research/literature/sources/hoare-axiomatic-1969.md",
+    "lean4": "study/sources/lean4.md",
+    "nopaxos": "study/sources/nopaxos.md",
+    "curp": "study/sources/curp.md",
+    "rfc9000": "study/sources/rfc9000.md",
+    "rfc9114": "study/sources/rfc9114.md",
+    "ewd720": "study/sources/ewd720.md",
+    "ewd1215": "study/sources/ewd1215.md",
+    "hoare1969": "study/sources/hoare-axiomatic-1969.md",
 }
 
 STOPWORDS = set("""a an and are as at be been but by can could did do does for

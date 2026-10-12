@@ -191,7 +191,7 @@ More generally, any two configurations with an available weighted majority and
 a positive retained live leader admit a finite sequence of legal unit edits
 preserving availability and adjacent quorum intersection. These are properties of
 the identity-weight space; phantom membership is not a received acknowledgement.
-The [constructive proofs and generated checks](../research/weighted-reachability/README.md)
+The [constructive proofs and generated checks](../study/weighted-reachability/README.md)
 state the exact predicates and cover arbitrary finite cluster sizes.
 
 ### 7. The worked schedules (the blog grids)
@@ -413,7 +413,7 @@ Recomputation includes every remaining batch, including promotion and halving af
 the old member leaves. Ordinary view changes separate these forced batches.
 The broader identity-weight space also admits phantom completion of an abstract
 leader overlap and available-majority paths between arbitrary admissible endpoints;
-see the [weighted reachability proofs](../research/weighted-reachability/README.md).
+see the [weighted reachability proofs](../study/weighted-reachability/README.md).
 
 **Doubled-weights corner.** If the reincarnation happens while the cluster sits in the
 doubled state of the blog's safe-replacement plan, the sequence runs at the doubled
@@ -796,7 +796,7 @@ but not the heavier one. The solver's guarantee is for `WeightedMajority`;
 other policies must pass the core's role-specific gates independently.
 
 Appendix 2 of `paper/paper.tex` gives the proofs and test contract.
-`research/weighted-reachability/` contains the independent Python enumeration,
+`study/weighted-reachability/` contains the independent Python enumeration,
 charts and the phantom-identity casting-vote construction. The latter constructs
 an abstract quorum witness without treating absent identities as received
 promises. The Rust solver computes configuration paths; it does not currently

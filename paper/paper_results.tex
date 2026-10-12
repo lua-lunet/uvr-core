@@ -239,11 +239,11 @@ per-invocation scratch directories and an import-preserving prompt.
 
 \section{Exhaustive checker coverage}\label{sec:exhaustive}
 The independent Python checker
-(\path{research/weighted-reachability/check.py}, standard library only)
+(\path{study/weighted-reachability/check.py}, standard library only)
 records its exact coverage counts in
-\path{research/weighted-reachability/generated/summary.json}, and the
+\path{study/weighted-reachability/generated/summary.json}, and the
 repository's written record states the headline totals
-(\path{research/weighted-reachability/README.md}).
+(\path{study/weighted-reachability/README.md}).
 
 \subsection{Weighted reachability}
 Every weight vector and availability count with a positive live leader
@@ -262,7 +262,7 @@ two-vote jump, a missing live majority, excessive phantom weight, and
 counting the abstract companion as a received quorum.
 
 \subsection{The fused batch}
-\path{research/weighted-reachability/check_fuse.py} records
+\path{study/weighted-reachability/check_fuse.py} records
 (\path{generated/fuse-summary.json}): the three-voter fused schedule checks
 2 boundaries and 64 cross-quorum majority pairs; the five-voter schedule
 checks 6 boundaries and 5{,}760 pairs; over four identities with weights in
@@ -356,9 +356,9 @@ make test-kill\\
 make test-resurrect\\[4pt]
 zig test -lc --dep stdx\\
 \hspace*{2em}-Mroot=zig/root.zig -Mstdx=zig/stdx/stdx.zig\\[4pt]
-python3 research/weighted-reachability/check.py\\
+python3 study/weighted-reachability/check.py\\
 \hspace*{2em}--max-n 10 --pair-max-n 6\\
-python3 research/weighted-reachability/check\_fuse.py\\[4pt]
+python3 study/weighted-reachability/check\_fuse.py\\[4pt]
 cd formal/uvrr-lean \&\& lake build\\
 \hspace*{2em}\&\& python3 check\_axioms.py\\
 python3 check\_mutations.py\\

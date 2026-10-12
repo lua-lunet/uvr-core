@@ -159,5 +159,5 @@ quantify over intermediate ballots.
 - **It is not the weakest precondition.** The triple `{Q} S {R}` is a
   relational assertion about a statement. The weakest precondition of the same
   name is a predicate transformer for atomic commands
-  (`research/glossary.md`), a different notion with a different shape. This
+  (`study/glossary.md`), a different notion with a different shape. This
   document states no transformer and no composition law for one.

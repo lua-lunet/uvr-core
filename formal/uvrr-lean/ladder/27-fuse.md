@@ -44,11 +44,11 @@ ordinary acceptor's ballot/entry-era rule; it does not waive that rule for Fuse.
 The independent finite arithmetic check is:
 
 ```sh
-python3 research/weighted-reachability/check_fuse.py
+python3 study/weighted-reachability/check_fuse.py
 ```
 
 Its domains, counts and negative control are recorded in
-`research/weighted-reachability/generated/fuse-summary.json`. The three-voter
+`study/weighted-reachability/generated/fuse-summary.json`. The three-voter
 domain covers both boundaries, and the five-voter domain covers all six.
 
 ## Scope

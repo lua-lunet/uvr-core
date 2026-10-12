@@ -1,5 +1,0 @@
-null
-null
-null
-null
-Added: y. Section appears exactly once; staged diff is a single appended hunk only: `AGENTS.md | 7 +++++++`. Not committed.

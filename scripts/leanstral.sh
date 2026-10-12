@@ -8,12 +8,12 @@
 #      (the multiturn environment Leanstral 1.5 was trained in).
 #   2. Vibe agent mode — `vibe -p "<prompt>" --agent lean --auto-approve
 #      --max-turns 12` (the model edits files and runs bash itself; trained
-#      for lean-lsp-mcp). Record: research/leanstral-vibe-smoke.md.
+#      for lean-lsp-mcp). Record: leanstral-vibe-smoke note, archived at tag dumpster-before-paper-reorg.
 #   3. Local weights — mistralai/Leanstral-2603 on Hugging Face, Apache-2.0,
 #      on your own metal.
 #
-# Known quirks, all learned the hard way (research/mistral-lean/VERDICT.md,
-# research/leanstral-vibe-smoke.md, research/claude-plus-leanstral/):
+# Known quirks, all learned the hard way (mistral-lean/VERDICT.md, leanstral-vibe-smoke, claude-plus-leanstral — all
+# archived at tag dumpster-before-paper-reorg):
 #   - The Labs endpoint rejects `temperature: 0` alone with HTTP 400 code
 #     3054 ("top_p must be 1 when using greedy sampling") — always send
 #     top_p: 1 alongside.
