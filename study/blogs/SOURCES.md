@@ -1,4 +1,4 @@
-# SOURCES — item16 (UPaxos/VRR source material)
+# SOURCES — UPaxos and VRR source material
 
 Fetched 2026-09-05. Output root: `.tmp/blogs/`.
 

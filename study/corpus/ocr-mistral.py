@@ -1,11 +1,11 @@
 """Mistral OCR pass over the paper/research corpus.
 
 Follows the repository's established OCR pattern (paper/build.sh --ocr,
-research/ocr_run.py): the key is read silently from the repository .env, never
+study/ocr_run.py): the key is read silently from the repository .env, never
 printed, echoed, or written anywhere. Model is mistral-ocr-latest, the same
 model the paper's own build gate uses.
 
-Usage: python3 ocr-mistral.py          (from research/literature/corpus)
+Usage: python3 ocr-mistral.py          (from study/corpus)
 Writes ocr-mistral/<pdf-stem>.md, one "---"-separated markdown page stream.
 Prints one JSON line per paper: {"id", "mode", "pages", "chars", "seconds"}.
 Skips PDFs whose output already exists and is non-trivial.

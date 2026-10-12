@@ -223,7 +223,7 @@ URL; smoke-test plausibility (timeboxed hello-world).
 - **Ongaro's raft.tla TLAPS LogCompleteness proof (2014)** — partial/mechanical
   only against admitted invariants; superseded by the Tier 1/2 stack.
 
-## Bottom line for item08.5
+## Bottom line
 
 Ranked by "submodule and kick the tires today", against the position paper's
 safety-first VRR-reconfiguration goal:

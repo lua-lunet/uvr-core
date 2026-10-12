@@ -37,7 +37,7 @@ artifact identified by its SHA-256; none is quoted from a secondary source.
 ## Layout
 
 ```
-research/
+study/corpus/
 ├── README.md            this file
 ├── papers.jdt.json      JSON Table schema for meta/*.json
 ├── ocr-mistral.py       Mistral OCR driver (mistral-ocr-latest)

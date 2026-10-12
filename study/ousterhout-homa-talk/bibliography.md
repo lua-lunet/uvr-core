@@ -15,7 +15,7 @@ Compiled 2026-09-28 (agent366). Verified fact first, then the works.
   → Raft (2014, with Ongaro) → CURP (NSDI'19) → EPaxos Revisited (NSDI'21) →
   Homa (SIGCOMM'18, ATC'21, arXiv 2022, talks 2022–2026).
 - The 2026-09-17 AI Engineer talk transcript is at
-  `research/agent366/ousterhout/homa-talk-transcript.txt` (whisper large-v3 STT
+  `study/ousterhout-homa-talk/homa-talk-transcript.txt` (whisper large-v3 STT
   of yt-dlp audio). He ends it by explicitly soliciting collaborators:
   "I retired from Stanford… so I can spend 100% of my time hacking on HOMA.
   I'd be delighted to work with you… feel free to contact me. My email is on

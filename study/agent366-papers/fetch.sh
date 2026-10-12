@@ -1,6 +1,6 @@
 #!/bin/zsh
 # agent366 reference harvest — downloads every external work cited in docs/* or
-# paper/* (plus Raft, per user instruction) into research/agent366/papers/.
+# paper/* (plus Raft, per user instruction) into study/agent366-papers/.
 # Append-only log of what was fetched lives in ../log.md.
 set -u
 cd "$(dirname "$0")"
@@ -13,7 +13,7 @@ fetch() { # $1 = output name, $2 = url
     || { echo "FAIL $1"; rm -f "$1"; }
 }
 
-# Papers with a single copy of record in research/literature/ (corpus, turner,
+# Papers with a single copy of record in the study/ literature folders (corpus, turner,
 # fast18) are not fetched here: vr-revisited-2012, fast18-alagappan-par,
 # vr-1988-oki-liskov.
 fetch paxos-made-simple-2001.pdf     https://lamport.azurewebsites.net/pubs/paxos-simple.pdf

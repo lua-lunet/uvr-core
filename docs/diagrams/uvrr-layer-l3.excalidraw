@@ -94,14 +94,14 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "WHAT IT IS\nresearch/weighted-reachability/check{,_fuse}.py:\n29,690 endpoint/response combos, 99,352 unit edges,\n64 + 5,760 quorum pairs, equal-total-swap control",
+   "text": "WHAT IT IS\nstudy/weighted-reachability/check{,_fuse}.py:\n29,690 endpoint/response combos, 99,352 unit edges,\n64 + 5,760 quorum pairs, equal-total-swap control",
    "fontSize": 13,
    "fontFamily": 5,
    "textAlign": "left",
    "verticalAlign": "top",
    "baseline": 11,
    "containerId": null,
-   "originalText": "WHAT IT IS\nresearch/weighted-reachability/check{,_fuse}.py:\n29,690 endpoint/response combos, 99,352 unit edges,\n64 + 5,760 quorum pairs, equal-total-swap control",
+   "originalText": "WHAT IT IS\nstudy/weighted-reachability/check{,_fuse}.py:\n29,690 endpoint/response combos, 99,352 unit edges,\n64 + 5,760 quorum pairs, equal-total-swap control",
    "lineHeight": 1.25
   },
   {

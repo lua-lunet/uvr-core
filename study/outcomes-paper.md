@@ -20,19 +20,19 @@ Subject: proving VRR cluster-reconfiguration safety in vrr-core / Mistral leanst
 
 Survey → Submodule → Hello-world → Compile-check → Map to literature.
 
-Eleven maintained candidates ranked by "submodule and run it today" (solver-survey); three tool families smoke-tested under a timebox (tool-kick-tires); the item10 LLM candidate re-checked against the now-installed toolchain; outcomes mapped against the position paper and glossary. All runs local; submodules staged, not committed.
+Eleven maintained candidates ranked by "submodule and run it today" (solver-survey); three tool families smoke-tested under a timebox (tool-kick-tires); the Mistral Leanstral LLM candidate re-checked against the now-installed toolchain; outcomes mapped against the position paper and glossary. All runs local; submodules staged, not committed.
 
 ## Three tool outcomes, applied
 
-### Mistral labs-leanstral-1-5-1 (item10 + this item's compile check)
+### Mistral labs-leanstral-1-5-1 (with its compile check)
 
 Is a one-shot LLM usable as a Lean proof generator? Single shot, temperature 0 forced with `top_p: 1` (the endpoint rejects temperature 0 alone — HTTP 400, code 3054). Exactly one code block, no prose: `import Init`, `theorem two_plus_two : (2 : Nat) + 2 = 4`, `:= by native_decide`. **Verified — compiles clean, exit 0, Lean 4.33.1 via `lake env lean` from `.tmp/lean-hello/`; VERDICT.md's "tbd" is resolved.** **Caveat — `native_decide` semantics: accepted by the elaborator, but discharged by compiled evaluation of a `Decidable` instance, not the kernel's trusted checker.** Weaker than `decide` or `rfl`; a VRR safety proof must stay kernel-checked.
 
-### TLA+ / TLC (item11)
+### TLA+ / TLC
 
 Does the reference ecosystem run today? Java already present; jar URL needed the monorepo substitution (TLC2 2.19, Aug 2024). `Hello.tla` (one-bit register, `EXTENDS Naturals` — `EXTENDS TLC` alone does not define `-`) ran via `java -cp tla2tools.jar tlc2.TLC`. **Verified — model checking completed, no errors, invariant holds, under 1 s.** The repo's own `formal/VrrCore.tla` and `VrrCoreEras.tla` exist but were not run, per spec. TLC's concrete-state checking is the corpus's default-path strength — the one model checker we ran.
 
-### Lean 4 tools: Veil / LeanLTL / lean-auto (item12 + compile check)
+### Lean 4 tools: Veil / LeanLTL / lean-auto (with compile check)
 
 Does the Lean side stand up? Toolchain installed (4.33.1, Lake 5.0.0, arm64); `tools/veil`, `tools/LeanLTL`, `tools/lean-auto` submoduled shallow, staged only. `Hello.lean` proved `1 + 1 = 2` by `rfl` — **verified, kernel-checked, clean.** `lake build` alone warns "no targets" (bare toml lakefile); `lake env lean` is the working path. **Skipped — building a Veil example: toolchain pin mismatch plus the Mathlib resolve, out of timebox.** LeanLTL and lean-auto were submoduled but not separately smoke-tested; only core Lean is verified *[inference: nothing above tests the libraries themselves]*.
 
@@ -53,7 +53,7 @@ Does the Lean side stand up? Toolchain installed (4.33.1, Lake 5.0.0, arm64); `t
 
 ## Practicality ranking, skipped tools, and the mapping
 
-**Survey ranking (item08.5, "submodule and kick the tires today"):** 1. **Veil** — the position paper's own recommendation, at its most runnable point (template repo, Veil 2.0 preview, active liveness work); a VRR normal-case/view-change model is a realistic first timebox. 2. **Quint + Apalache** — npm + docker, minutes to hello-world, the natural place to prototype VRR reconfiguration before committing to Lean. 3. **TLA+/TLAPS with the logless-reconfig artifact** — the only published, mechanically checked *reconfiguration* safety proof in the Raft family (MongoRaftReconfig, OPODIS 2021), cheap to re-check, with Ongaro's `raft.tla` and the etcd-aligned spec as baselines. *The ranking is reading-based; our smoke tests covered only TLC and core Lean — the ranking's own claim, not a tested fact.*
+**Survey ranking ("submodule and kick the tires today"):** 1. **Veil** — the position paper's own recommendation, at its most runnable point (template repo, Veil 2.0 preview, active liveness work); a VRR normal-case/view-change model is a realistic first timebox. 2. **Quint + Apalache** — npm + docker, minutes to hello-world, the natural place to prototype VRR reconfiguration before committing to Lean. 3. **TLA+/TLAPS with the logless-reconfig artifact** — the only published, mechanically checked *reconfiguration* safety proof in the Raft family (MongoRaftReconfig, OPODIS 2021), cheap to re-check, with Ongaro's `raft.tla` and the etcd-aligned spec as baselines. *The ranking is reading-based; our smoke tests covered only TLC and core Lean — the ranking's own claim, not a tested fact.*
 
 **Skipped or worked around, with reasons:** Veil build (timebox); Quint, Apalache, Ivy, mypyvy, Verus, Bythos, and the invariant-inference tools (survey entries, never scheduled); repo `formal/` specs (out of scope); watch-list items — Antithesis, CCF, the federated Raft campaign — claims, not submoduleable tools.
 
