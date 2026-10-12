@@ -96,6 +96,21 @@ jobs:
               brew install ripgrep
             fi
           fi
+      # The demo's real socket transport links the paxe datagram codec
+      # behind the `demo-locks` feature, and the codec links libsodium
+      # statically: every lane that builds `--all-features` needs the
+      # archive on the machine, or the link fails before any test runs. The
+      # feature is off in the default lane, so this is the whole of what a
+      # build without the demo needs.
+      - name: Ensure libsodium
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install --yes libsodium-dev
+          else
+            brew install libsodium
+          fi
       # The generated compliance corpus is a committed file, and a
       # reference change that moves a corpus byte is a change nobody can
       # see in a review. This step is the named, visible form of the sync

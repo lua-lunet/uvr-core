@@ -171,8 +171,16 @@ fn feature_table_declares_the_gated_lanes() {
 /// The complete set of permitted optional `[dependencies]`, in sorted order.
 ///
 /// Every entry is feature-gated and never reaches a `default-features = false`
-/// consumer; the non-optional gate above is what protects the consumer.
-const OPTIONAL_DEPENDENCY_ALLOWLIST: [&str; 2] = ["serde", "serde_json"];
+/// consumer; the non-optional gate above is what protects the consumer. Two of the
+/// three are crates.io entries. `paxe-core` is a git entry pinned by revision, and
+/// the pin is the second thing this test enforces: a revision, never a branch or a
+/// moving tag, so two builds of this manifest carry the same codec. The second
+/// reason the entry is permitted at all is that this crate's own law says it does
+/// not open a socket or link cryptography: the one place that it does is the demo's
+/// real transport (`src/demo/paxe_transport.rs`), behind `demo-locks`, and this
+/// test's gate is what keeps the feature from becoming the default. A third git
+/// entry is a decision, not a convenience, and has to be made again here.
+const OPTIONAL_DEPENDENCY_ALLOWLIST: [&str; 3] = ["paxe-core", "serde", "serde_json"];
 
 #[test]
 fn optional_dependency_set_is_exactly_the_allowlist() {
@@ -189,6 +197,30 @@ fn optional_dependency_set_is_exactly_the_allowlist() {
         declared, OPTIONAL_DEPENDENCY_ALLOWLIST,
         "[dependencies] must name exactly the optional allowlist, every entry \
          optional; a new entry is a decision, not a convenience"
+    );
+
+    // A git dependency is pinned by revision. A branch or a moving tag lets
+    // one manifest resolve to different code in two builds, which is the
+    // whole thing a pin is for.
+    for line in deps.lines().filter(|line| is_dependency_line(line)) {
+        if line.contains("git =") {
+            assert!(
+                line.contains("rev ="),
+                "every git dependency is pinned by rev, never by branch or tag: {line}"
+            );
+        }
+    }
+
+    // The codec's C ABI is the LuaJIT host's surface, and a Rust consumer
+    // links none of it: the demo's transport is the codec's modules.
+    let paxe = deps
+        .lines()
+        .filter(|line| is_dependency_line(line))
+        .find(|line| dependency_name(line) == "paxe-core")
+        .expect("[dependencies] must declare paxe-core");
+    assert!(
+        paxe.contains("default-features = false"),
+        "paxe-core is taken without its default features: {paxe}"
     );
 }
 

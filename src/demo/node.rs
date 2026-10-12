@@ -13,10 +13,12 @@
 //! applies at, the one clock every replica already agrees on. Every wait
 //! in a demo run is a bounded, deterministic loop over the transport.
 //!
-//! The loop's intended real transport is PAXE: the sans-I/O codec a real
-//! single-threaded loop calls. The [`Transport`] seam is where a real
-//! codec mounts; wiring real sockets is a slice for a downstream host,
-//! never this scaffold's business.
+//! The loop's real transport is [`crate::demo::PaxeTransport`]: a
+//! [`std::net::UdpSocket`] and paxe's datagram codec, one wait on the
+//! socket read, per-link keys that are configuration rather than anything
+//! this crate manages. The [`Transport`] seam is what the loop is written
+//! against, and the in-memory harness on the other side of it is how the
+//! protocol is proved; both are the same seam with something under them.
 
 use std::collections::VecDeque;
 use std::io;

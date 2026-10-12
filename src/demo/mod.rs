@@ -18,8 +18,9 @@
 //!   host mounts its superblock here and changes nothing above the trait;
 //! - the single-threaded loop ([`DemoNode`]): drain the transport, feed
 //!   the core, take the effects, emit. The transport is a seam, so a
-//!   harness drives the loop in memory; the loop's intended real transport
-//!   is PAXE, the sans-I/O codec a real loop calls;
+//!   harness drives the loop in memory; the seam's real transport is
+//!   [`PaxeTransport`], the one place a socket and a cipher are mounted,
+//!   and the loop's only wait there is the socket read;
 //! - the resend ledger: the host half that replays exactly the datagrams
 //!   the core released, byte-identical. The demo has no timers, so the
 //!   harness drives every relay deterministically;
@@ -27,20 +28,23 @@
 //!   cluster owes the wire.
 //!
 //! What the demo deliberately does not carry: timers and timeout
-//! machinery, an industrial WAL, snapshots, an AOF, any external
-//! dependency beyond the `serde` lane the lock table's payload codec
-//! rides. Nothing here reads a wall clock: the lease clock is the
-//! replicated log's own progress, the slot the operation applies at, the
-//! one clock every replica already agrees on.
+//! machinery, an industrial WAL, snapshots, an AOF, key management of any
+//! kind, any external dependency beyond the `serde` lane the lock table's
+//! payload codec rides and the paxe lane its real transport seals with.
+//! Nothing here reads a wall clock: the lease clock is the replicated log's
+//! own progress, the slot the operation applies at, the one clock every
+//! replica already agrees on.
 //!
-//! The three seams are the whole distance between this scaffold and an
-//! industrial deployment: mount the heavy disk, the industrial fence and
-//! the real transport, and the machinery above them is unchanged.
+//! Two seams are the whole distance between this scaffold and an industrial
+//! deployment: mount the heavy disk and the industrial fence, and the
+//! machinery above them is unchanged. The third, the real transport, is
+//! mounted here, so the distance is two.
 
 pub mod disk;
 pub mod fence;
 pub mod locks;
 pub mod node;
+pub mod paxe_transport;
 pub mod rejoin;
 pub mod relay;
 pub mod spi;
@@ -52,6 +56,7 @@ pub use locks::{ClientId, Lease, Request, Response, Service, StateSnapshot};
 pub use node::{
     Applied, BootRefusal, DemoDisk, DemoNode, DemoRefusal, RunOutcome, StateLoad, Transport,
 };
+pub use paxe_transport::{PaxeConfig, PaxePeer, PaxeRefusal, PaxeTransport};
 pub use rejoin::gossip_datagram;
 pub use relay::{Datagram, Ledger};
 pub use spi::{CommitHook, NoOpHook};
