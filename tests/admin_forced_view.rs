@@ -23,64 +23,23 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{current_view, n, op_id, snap, status_of, three_node_cluster, view};
+
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, SystemId, View};
-use uvrr::progress::{ProgressSnapshot, Status};
-use uvrr::replica::{PlanRefusal, ViewChangeKnobs};
+use uvrr::ids::{Ballot, Era, NodeId, View};
+use uvrr::progress::Status;
+use uvrr::replica::PlanRefusal;
 use uvrr::wire::Tag;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
-fn snap(h: &Harness, id: NodeId) -> ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
 const TIMEOUT: u64 = 3;
-
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
 
 fn bootstrap(h: &mut Harness) {
     h.tick_all();
@@ -120,7 +79,7 @@ fn applied_payloads(h: &Harness, id: NodeId) -> Vec<Vec<u8>> {
 
 #[test]
 fn admin_forced_view_installs_the_chosen_primary_through_the_ordinary_pipeline() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     commit_one(&mut h, n(0), 1, b"a"); // slot 3 committed everywhere
 
@@ -176,7 +135,7 @@ fn admin_forced_view_installs_the_chosen_primary_through_the_ordinary_pipeline()
 
 #[test]
 fn admin_force_view_rejects_non_advancing_uncommitted_era_and_exhausted_targets() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let current = current_view(&h, n(0));
 
@@ -233,7 +192,7 @@ fn admin_force_view_rejects_non_advancing_uncommitted_era_and_exhausted_targets(
 
 #[test]
 fn client_stream_survives_a_forced_view_change() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     commit_one(&mut h, n(0), 1, b"a"); // slot 3 committed and applied everywhere
 
@@ -276,7 +235,7 @@ fn client_stream_survives_a_forced_view_change() {
 
 #[test]
 fn admin_force_view_into_the_established_era() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // A committed reconfiguration establishes era 2. The view has NOT

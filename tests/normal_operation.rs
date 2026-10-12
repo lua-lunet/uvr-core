@@ -13,7 +13,7 @@
 
 use uvrr::configuration::INIT_SLOT;
 use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, OperationId, Slot, View};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
@@ -24,20 +24,12 @@ use uvrr::wire::{Header, Tag};
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{n, op_id};
+
 use harness::{BoundaryEvent, Harness, StepOutcome};
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The view every node in these tests provisions and bootstraps into: era 1
 /// (genesis reconfiguration), view 0.

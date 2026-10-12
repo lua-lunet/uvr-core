@@ -43,12 +43,17 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{current_view, n, op_id, snap, status_of, three_node_cluster, view};
+
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::progress::{ProgressSnapshot, Status};
+use uvrr::progress::Status;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Pack, Tag};
 
@@ -56,53 +61,7 @@ use uvrr::wire::{Header, Pack, Tag};
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
-fn snap(h: &Harness, id: NodeId) -> ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
 const TIMEOUT: u64 = 3;
-
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
 
 /// An operation log entry at `slot`, the era-1 genesis kind every
 /// pre-reconfiguration journal holds.
@@ -188,7 +147,7 @@ fn apply_all(h: &mut Harness, ids: impl IntoIterator<Item = u32>) {
 
 #[test]
 fn higher_view_prepare_pulls_laggard_into_qualified_transfer() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.partition(vec![n(0), n(1)], vec![n(2)]);
     commit_one(&mut h, n(0), 1, b"a"); // slot 3 commits on the majority side
@@ -320,7 +279,7 @@ fn higher_view_prepare_pulls_laggard_into_qualified_transfer() {
 
 #[test]
 fn bare_higher_view_hint_is_never_installation_evidence() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     commit_one(&mut h, n(0), 1, b"a");
 
@@ -364,7 +323,7 @@ fn bare_higher_view_hint_is_never_installation_evidence() {
 
 #[test]
 fn forged_new_state_is_rejected_and_never_faults() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // Drive n2 into the qualified transfer path for view 1: a higher-view
@@ -655,7 +614,7 @@ fn chunked_transfer_resumes_from_cursor_and_tolerates_reordering() {
 
 #[test]
 fn recovering_node_refuses_get_state() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     commit_one(&mut h, n(0), 1, b"a");
     h.halt(n(2));

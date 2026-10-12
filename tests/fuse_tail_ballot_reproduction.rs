@@ -18,9 +18,13 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
 use harness::Harness;
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::wire::{Header, Tag};
 
@@ -29,13 +33,6 @@ fn current_view() -> Ballot {
         era: Era(1),
         view: View(0),
     }
-}
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
 }
 
 /// The join-and-promote schedule: two packed slots, one establishing

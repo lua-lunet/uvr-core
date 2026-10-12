@@ -11,9 +11,13 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{REL_ALL, Rel, n, rel, released, view};
+
 use harness::{Harness, StepOutcome, mint_pair};
-use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, OperationId, Slot};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
@@ -23,16 +27,6 @@ use uvrr::wire::{Header, Tag};
 
 const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"proposed";
-
-#[rustfmt::skip]
-fn n(id: u32) -> NodeId {
-    let system = SystemId::new((id + 1) as u16).expect("small and non-zero");
-    let life = CrashCounter::new(1).expect("one is non-zero");
-    NodeId::new(system, life)
-}
-
-#[rustfmt::skip]
-fn view(number: u32) -> Ballot { Ballot { era: Era(1), view: View(number) } }
 
 #[rustfmt::skip]
 fn op_entry(slot: Slot, era: Era, id: OperationId) -> LogEntry {
@@ -45,18 +39,6 @@ fn prepare(view: Ballot, slot: Slot, entry: LogEntry, piggy: Slot) -> Message {
         header: Header { tag: Tag::Prepare, view, slot },
         body: Body::Prepare { entry, committed: piggy },
     }
-}
-
-/// The relation of one numeric field against the receiver's own value.
-#[rustfmt::skip]
-#[derive(Clone, Copy)]
-enum Rel { Less, Equal, Greater }
-
-const REL_ALL: [Rel; 3] = [Rel::Less, Rel::Equal, Rel::Greater];
-
-#[rustfmt::skip]
-fn rel(r: Rel, base: u64) -> u64 {
-    match r { Rel::Less => base - 1, Rel::Equal => base, Rel::Greater => base + 1 }
 }
 
 /// The receiver's assembled boot status.
@@ -95,18 +77,6 @@ fn cluster_at_view_one() -> Harness {
     for _ in 0..=TIMEOUT { h.tick(n(1)); }
     h.deliver_all();
     h
-}
-
-/// The datagrams one step released, empty on a refusal.
-#[rustfmt::skip]
-fn released(outcome: &StepOutcome) -> Vec<(NodeId, Message)> {
-    match outcome {
-        StepOutcome::Published { effects, .. } => effects.iter().filter_map(|e| match e {
-            Effect::Send { to, message, .. } => Some((*to, message.clone())),
-            _ => None,
-        }).collect(),
-        _ => Vec::new(),
-    }
 }
 
 #[rustfmt::skip]

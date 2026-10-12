@@ -9,50 +9,19 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster, view};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{INIT_SLOT, SystemOperation};
-use uvrr::ids::{Ballot, CrashCounter, Era, Fault, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, Fault, NodeId, Slot};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, EraProof, EvidenceKind, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::progress::{ProgressSnapshot, Status};
+use uvrr::progress::Status;
 use uvrr::replica::{PlanRefusal, ViewChangeKnobs};
 use uvrr::wire::{Header, Pack, Tag};
-
-/// Node id shorthand (the harness's own pattern).
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-/// A view in era 1, every scenario here is same-era (W1).
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
-/// The snapshot of a live node (tests never snapshot a crashed one).
-fn snap(h: &Harness, id: NodeId) -> ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 /// The primary of a view in era 1 under the genesis order (§1.2).
 fn primary_of(view: Ballot) -> NodeId {
@@ -68,12 +37,6 @@ fn payload_of(entry: &LogEntry) -> &[u8] {
     payload
 }
 
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
 /// Executes every pending [`uvrr::effects::Effect::Apply`] at the given nodes (one harness step per
 /// effect), the way a host would.
 fn apply_all(h: &mut Harness, ids: [u32; 3]) {
@@ -85,25 +48,6 @@ fn apply_all(h: &mut Harness, ids: [u32; 3]) {
 /// The timeout knob used by every test in this suite: a backup enters a view
 /// change after more than three ticks of primary silence (S4).
 const TIMEOUT: u64 = 3;
-
-/// A three-node cluster with the view-change knobs set explicitly.
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-/// Bootstraps the cluster: the genesis primary promotes itself and both
-/// backups adopt view (1, 0). Two harness steps.
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
 
 /// Ticks a node until its timeout fires (one tick past the knob), asserting
 /// it fenced into exactly `target`.
@@ -159,7 +103,7 @@ fn drive_view_change(h: &mut Harness, prime: NodeId, voter: NodeId, target: Ball
 //    quorum, StartView install, and an operation completing under view 1.
 #[test]
 fn happy_path_view_change_completes_and_serves_operations() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"a");
     h.deliver_all();
@@ -216,7 +160,7 @@ fn happy_path_view_change_completes_and_serves_operations() {
 //    the new view by cumulative acknowledgement.
 #[test]
 fn committed_entries_survive_a_mid_pipeline_crash() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"x"); // slot 3
     h.propose(n(0), op_id(2), b"y"); // slot 4
@@ -263,7 +207,7 @@ fn committed_entries_survive_a_mid_pipeline_crash() {
 //    slot 3, asserted by journal inspection, not merely the frontier.
 #[test]
 fn divergent_uncommitted_tail_is_discarded() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // Partition the primary first, then let it accept an operation no
@@ -298,7 +242,7 @@ fn divergent_uncommitted_tail_is_discarded() {
 //    entry survives. This is the load-bearing test of the ranking rule.
 #[test]
 fn retained_view_outranks_accepted_frontier_section_9_2_counterexample() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // View 0: X@3 committed everywhere.
@@ -398,7 +342,7 @@ fn retained_view_outranks_accepted_frontier_section_9_2_counterexample() {
 //    joined (the node advances its own target and re-broadcasts).
 #[test]
 fn start_view_change_stale_ignored_and_ahead_joined() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.partition(vec![n(0)], vec![n(1), n(2)]);
     drive_view_change(&mut h, n(1), n(2), view(1));
@@ -439,7 +383,7 @@ fn start_view_change_stale_ignored_and_ahead_joined() {
 //    proposals, with named diagnostics.
 #[test]
 fn the_fence_is_real() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"a");
     h.deliver_all();
@@ -644,7 +588,7 @@ fn bounded_suffix_rules_section_13_1() {
 //    IllegalTransition (the view-change path's one deliberate fault-on-peer-input).
 #[test]
 fn start_view_conflicting_at_a_committed_slot_faults() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"x");
     h.deliver_all();
@@ -687,7 +631,7 @@ fn start_view_conflicting_at_a_committed_slot_faults() {
 //    exactly one StartView takes effect.
 #[test]
 fn two_view_changes_for_one_view_cannot_both_complete() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"a");
     h.deliver_all();
@@ -772,7 +716,7 @@ fn two_view_changes_for_one_view_cannot_both_complete() {
 //     the boundary.
 #[test]
 fn retried_proposal_across_the_change() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // The proposal is accepted by the old primary alone, under partition.
@@ -974,7 +918,7 @@ fn bounded_suffix_packing_break_never_emits_a_hole() {
 //     folded the status refusal into the view check.
 #[test]
 fn a_same_view_message_at_a_fencing_node_names_the_status_gate() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.propose(n(0), op_id(1), b"a");
     h.deliver_all();

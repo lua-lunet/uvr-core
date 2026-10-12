@@ -17,24 +17,17 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
 use harness::Harness;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Tag};
 
 const ALL: [NodeId; 3] = [n(0), n(1), n(2)];
-
-const fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
@@ -47,36 +40,10 @@ fn knobs() -> uvrr::replica::ViewChangeKnobs {
     }
 }
 
-fn cluster() -> Harness {
-    Harness::with_knobs(3, knobs())
-}
-
 /// The cluster with a statically registered witness: out of the roster,
 /// seeded into every node's gossip-witness list at startup, never purged.
 fn cluster_with_static_witness() -> Harness {
     Harness::with_static_witnesses(3, knobs(), &[n(9)])
-}
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
 }
 
 fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
@@ -149,7 +116,7 @@ fn gossip_request(prepared: Slot, committed: Slot) -> Message {
 /// leader's immediate push of the missed range is on the wire.
 #[test]
 fn the_join_gossip_lists_the_announcer_at_every_node() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let mut ops = 0u64;
     serve(&mut h, &mut ops);
@@ -269,7 +236,7 @@ fn a_successor_leader_resumes_the_witness_stream() {
 /// from a cold node IS the join: pushed and listed everywhere.
 #[test]
 fn a_gossip_request_pushes_the_missing_range_and_lists_no_member() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let mut ops = 0u64;
     serve(&mut h, &mut ops);
@@ -352,7 +319,7 @@ fn a_gossip_request_pushes_the_missing_range_and_lists_no_member() {
 /// applies commits in order or refuses them, never rewinds.
 #[test]
 fn a_stale_stream_message_never_moves_the_sink_backwards() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let mut ops = 0u64;
     serve(&mut h, &mut ops);
@@ -401,7 +368,7 @@ fn a_stale_stream_message_never_moves_the_sink_backwards() {
 /// member, duplicate delivery would be safe, the drop saves the IO.
 #[test]
 fn promotion_removes_the_joined_voter_from_every_witness_list() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let mut ops = 0u64;
     serve(&mut h, &mut ops);

@@ -5,19 +5,17 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::op_id;
 use harness::{Harness, StepOutcome, provisioned_id as n, provisioned_member as member};
 use uvrr::configuration::{SystemOperation, Weight};
 use uvrr::effects::{Effect, PlanVerdict};
-use uvrr::ids::{Ballot, Era, OperationId, Slot, View};
+use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::journal::Payload;
 use uvrr::observe::Diagnostic;
 use uvrr::plan::{Plan, PlanRejection};
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// A three-node unit cluster whose view-change machinery is inert: the
 /// era-boundary view changes these scripts drive are the host's say-so

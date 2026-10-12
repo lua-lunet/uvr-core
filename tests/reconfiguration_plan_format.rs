@@ -6,19 +6,16 @@
 //! expressed as plans, the codec round trip, and the leader-side acceptance
 //! rule.
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
 use proptest::prelude::*;
 use proptest::test_runner::TestCaseError;
 use uvrr::configuration::{Configuration, Member, Snapshot, SystemOperation, Weight};
-use uvrr::ids::{CrashCounter, Era, NodeId, Slot, SystemId, View};
+use uvrr::ids::{Era, NodeId, Slot, View};
 use uvrr::plan::{Plan, PlanRejection};
 use uvrr::solve;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
 
 fn m(id: u32, weight: u32) -> Member {
     Member {

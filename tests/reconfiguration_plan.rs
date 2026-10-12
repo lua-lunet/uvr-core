@@ -12,22 +12,19 @@
 //! gate [`uvrr::quorum::validate_transition`], the exhaustive disjoint-pair search
 //! the rules doc §8 names as the mechanical form of the intersection argument.
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
 use proptest::prelude::*;
 use proptest::test_runner::TestCaseError;
 
 use uvrr::configuration::{
     ConfigError, Configuration, INIT_SLOT, MAX_WEIGHT, Member, SystemOperation, VOID_SLOT, Weight,
 };
-use uvrr::ids::{CrashCounter, Era, NodeId, Slot, SystemId};
+use uvrr::ids::{Era, NodeId, Slot};
 use uvrr::quorum::{QuorumStrategy, Role, WeightedMajority};
 use uvrr::replica::forced_steps;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
 
 /// `Join { node, position }` at the named succession position.
 fn join(node: NodeId, position: u32) -> SystemOperation {

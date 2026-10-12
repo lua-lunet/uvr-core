@@ -17,9 +17,13 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{n, released};
+
 use harness::{Harness, StepOutcome, mint_id};
-use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::message::{Body, EvidenceKind, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
@@ -27,13 +31,6 @@ use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
 const TIMEOUT: u64 = 3;
-
-#[rustfmt::skip]
-fn n(id: u32) -> NodeId {
-    let system = SystemId::new((id + 1) as u16).expect("small and non-zero");
-    let life = CrashCounter::new(1).expect("one is non-zero");
-    NodeId::new(system, life)
-}
 
 /// The solicitation's era against the successor era.
 #[rustfmt::skip]
@@ -89,18 +86,6 @@ fn assembled(boot: Boot) -> Harness {
         h.halt(n(2)); h.restart_with(n(2)).expect("the halt classifies clean");
     }
     h
-}
-
-/// The datagrams one step released, empty on a refusal.
-#[rustfmt::skip]
-fn released(outcome: &StepOutcome) -> Vec<(NodeId, Message)> {
-    match outcome {
-        StepOutcome::Published { effects, .. } => effects.iter().filter_map(|e| match e {
-            Effect::Send { to, message, .. } => Some((*to, message.clone())),
-            _ => None,
-        }).collect(),
-        _ => Vec::new(),
-    }
 }
 
 #[rustfmt::skip]

@@ -16,22 +16,20 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
+
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::effects::Effect;
-use uvrr::ids::{CrashCounter, NodeId, OperationId, Slot, SystemId};
+use uvrr::ids::{NodeId, OperationId, Slot};
 use uvrr::journal::Payload;
 use uvrr::replica::{PlanRefusal, ViewChangeKnobs};
 use uvrr::wire::Tag;
 
 const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"ordered";
-
-#[rustfmt::skip]
-fn n(id: u32) -> NodeId {
-    let system = SystemId::new((id + 1) as u16).expect("small and non-zero");
-    let life = CrashCounter::new(1).expect("one is non-zero");
-    NodeId::new(system, life)
-}
 
 /// The node the host proposes to.
 #[rustfmt::skip]

@@ -28,9 +28,7 @@ use std::sync::Arc;
 
 use uvrr::configuration::{EraTable, INIT_SLOT, SystemOperation, VOID_SLOT};
 use uvrr::effects::{Effect, Stability, StabilityResult};
-use uvrr::ids::{
-    Ballot, CrashCounter, Era, Fault, NodeId, OperationId, Slot, SystemId, Tick, View,
-};
+use uvrr::ids::{Ballot, Era, Fault, NodeId, OperationId, Slot, Tick, View};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::progress::{ProgressSnapshot, Status};
@@ -42,16 +40,14 @@ use harness::{Harness, NodeEvidence, SafetyViolation, StepOutcome, check_cluster
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
 
 fn genesis_view() -> Ballot {
     Ballot {
