@@ -26,11 +26,14 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{current_view, n, op_id, snap, status_of, three_node_cluster, view};
+use common::{
+    TIMEOUT, applied_payloads, commit_one, current_view, n, op_id, snap, status_of,
+    three_node_cluster, view,
+};
 
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, Era, NodeId, View};
+use uvrr::ids::{Ballot, Era, View};
 use uvrr::progress::Status;
 use uvrr::replica::PlanRefusal;
 use uvrr::wire::Tag;
@@ -38,8 +41,6 @@ use uvrr::wire::Tag;
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const TIMEOUT: u64 = 3;
 
 fn bootstrap(h: &mut Harness) {
     h.tick_all();
@@ -52,24 +53,6 @@ fn bootstrap(h: &mut Harness) {
         );
     }
     h.assert_safety();
-}
-
-/// Drives one proposal at `primary` to full commitment everywhere and
-/// applies it.
-fn commit_one(h: &mut Harness, primary: NodeId, lsb: u64, payload: &[u8]) {
-    h.propose(primary, op_id(lsb), payload);
-    h.deliver_all();
-    for id in [n(0), n(1), n(2)] {
-        h.execute_apply_effects(id);
-    }
-}
-
-/// The payloads a node has applied, in slot order.
-fn applied_payloads(h: &Harness, id: NodeId) -> Vec<Vec<u8>> {
-    h.applied(id)
-        .iter()
-        .map(|(_, payload)| payload.to_vec())
-        .collect()
 }
 
 // ---------------------------------------------------------------------------

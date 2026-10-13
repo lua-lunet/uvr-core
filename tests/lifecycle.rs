@@ -31,14 +31,10 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, status_of, three_node_cluster};
+use common::{TIMEOUT, bootstrap, current_view, n, op_id, status_of, three_node_cluster};
 use harness::{Harness, StepOutcome};
 use uvrr::ids::{CrashCounter, NodeId};
 use uvrr::lifecycle::{CopyState, Marker, RestartClass, SuperblockCopies};
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
 
 fn current_era(h: &Harness, id: NodeId) -> uvrr::ids::Era {
     h.era_table(id).expect("the node is live").current().era

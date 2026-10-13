@@ -19,7 +19,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::n;
+use common::{TIMEOUT, n};
 
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::effects::Effect;
@@ -28,7 +28,6 @@ use uvrr::journal::Payload;
 use uvrr::replica::{PlanRefusal, ViewChangeKnobs};
 use uvrr::wire::Tag;
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"ordered";
 
 /// The node the host proposes to.

@@ -13,7 +13,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, snap, status_of};
+use common::{TIMEOUT, bootstrap, current_era, current_view, era2_view, n, snap, status_of};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{EraTable, SystemOperation};
 use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
@@ -23,14 +23,6 @@ use uvrr::quorum::{WeightedMajority, construct_pivot};
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::Tag;
 
-/// A view in era 2, the era the standby-bearing `DECREMENT` establishes.
-fn era2_view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(2),
-        view: View(number),
-    }
-}
-
 /// A view in era 3, the era the planned [`uvrr::configuration::SystemOperation::Leave`] establishes.
 fn era3_view(number: u32) -> Ballot {
     Ballot {
@@ -38,10 +30,6 @@ fn era3_view(number: u32) -> Ballot {
         view: View(number),
     }
 }
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
 
 /// A four-node cluster whose view-change machinery is live.
 fn cluster() -> Harness {
@@ -52,12 +40,6 @@ fn cluster() -> Harness {
             view_change_budget: usize::MAX,
         },
     )
-}
-
-/// The newest era the node's committed configuration history has
-/// established (§8.7.1).
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
 }
 
 /// Delivers the queued datagram with `tag` to `id`, asserting it exists.

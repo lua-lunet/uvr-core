@@ -28,7 +28,10 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
+use common::{
+    TIMEOUT, bootstrap, current_era, current_order, current_view, current_weights, fence_target, n,
+    op_id, primary_of, snap, status_of, three_node_cluster,
+};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
 use uvrr::ids::{Ballot, Era, NodeId, View};
@@ -36,55 +39,6 @@ use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Tag};
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
-}
-
-/// The member weights of the node's current configuration, in order.
-fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
-    h.era_table(id)
-        .expect("the node is live")
-        .current()
-        .config
-        .order()
-        .iter()
-        .map(|member| u64::from(member.weight.0))
-        .collect()
-}
-
-/// The member identities of the node's current configuration, in order.
-fn current_order(h: &Harness, id: NodeId) -> Vec<NodeId> {
-    h.era_table(id)
-        .expect("the node is live")
-        .current()
-        .config
-        .order()
-        .iter()
-        .map(|member| member.node)
-        .collect()
-}
-
-fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
-    h.era_table(observer)?
-        .record(view.era)
-        .and_then(|record| record.config.primary(view.view))
-}
-
-/// The view-change target the fence machinery itself chooses for `node`:
-/// the next view in the era the committed history has established
-/// (§8.7.8). The primary of that view is whoever the position names.
-fn fence_target(h: &Harness, node: NodeId) -> Ballot {
-    let current = current_view(h, node);
-    Ballot {
-        era: current_era(h, node),
-        view: View(current.view.0 + 1),
-    }
-}
 
 /// Drives the view change the fence machinery targets, asserting every
 /// node in `live` installs it.

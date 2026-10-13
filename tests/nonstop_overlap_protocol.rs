@@ -11,23 +11,18 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster, view};
+use common::{
+    TIMEOUT, bootstrap, current_era, current_view, era2_view, n, op_id, snap, status_of,
+    three_node_cluster, view,
+};
 use harness::{DeliveryOutcome, Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot};
 
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
 use uvrr::replica::{Pivot, PlanRefusal};
 use uvrr::wire::Tag;
-
-/// A view in era 2, the era the committed reconfiguration establishes.
-fn era2_view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(2),
-        view: View(number),
-    }
-}
 
 /// The pivot the scripts run (§8.7.6): `qI = {n0, n2}` is a view-change
 /// quorum under the genesis configuration, `qII = {n0, n1}` is a commit
@@ -45,16 +40,6 @@ fn overlap_pivot() -> Pivot {
 /// since views 1 and 2 select the other members.
 fn transition_view() -> Ballot {
     era2_view(3)
-}
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-/// The newest era the node's committed configuration history has
-/// established (§8.7.1).
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
 }
 
 /// The [`uvrr::effects::Effect::Send`] effects of a published step as `(to, route era, message)`.

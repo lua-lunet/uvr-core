@@ -15,14 +15,15 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
+use common::{
+    ALL, TIMEOUT, bootstrap, current_view, drive_view_change, n, op_id, primary_of, snap,
+    status_of, three_node_cluster,
+};
 use harness::{Harness, StepOutcome};
 use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Pack, Tag};
-
-const ALL: [NodeId; 3] = [n(0), n(1), n(2)];
 
 /// A journal entry as the wire packs it, for budget arithmetic.
 fn operation_entry(slot: u64, lsb: u64, payload: &[u8]) -> uvrr::journal::LogEntry {
@@ -34,49 +35,6 @@ fn operation_entry(slot: u64, lsb: u64, payload: &[u8]) -> uvrr::journal::LogEnt
             payload: payload.to_vec().into_boxed_slice(),
         },
     }
-}
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
-    h.era_table(observer)?
-        .record(view.era)
-        .and_then(|record| record.config.primary(view.view))
-}
-
-/// The view-change target the fence machinery itself chooses for `node`:
-/// the next view in the era the committed history has established
-/// (§8.7.8).
-fn fence_target(h: &Harness, node: NodeId) -> Ballot {
-    let current = current_view(h, node);
-    Ballot {
-        era: current.era,
-        view: View(current.view.0 + 1),
-    }
-}
-
-/// Drives the view change the fence machinery targets, asserting every
-/// node in `live` installs it. The driver is any live [`uvrr::progress::Status::Normal`] member,
-/// two live members of a three-node unit cluster reach the fence quorum.
-fn drive_view_change(h: &mut Harness, live: &[NodeId]) -> Ballot {
-    let target = fence_target(h, live[0]);
-    let driver = live
-        .iter()
-        .copied()
-        .find(|&id| status_of(h, id) == Status::Normal)
-        .expect("a live Normal member drives the fence");
-    for _ in 0..=TIMEOUT {
-        h.tick(driver);
-    }
-    h.deliver_all();
-    for &id in live {
-        assert_eq!(status_of(h, id), Status::Normal, "{id:?} installs");
-        assert_eq!(current_view(h, id), target, "{id:?} is in the target");
-    }
-    h.assert_safety();
-    target
 }
 
 /// One churn round: silence long enough for every live [`uvrr::progress::Status::Normal`] member to

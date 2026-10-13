@@ -19,16 +19,13 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, view};
+use common::{REL_ALL, Rel, assembled, n, view};
 
-use harness::{Harness, StepOutcome};
+use harness::StepOutcome;
 use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// The receiver's role against the current view's primary.
 #[derive(Clone, Copy)]
@@ -38,24 +35,6 @@ enum Role {
 }
 
 const ROLE_ALL: [Role; 2] = [Role::Leader, Role::Backup];
-
-/// A three-node cluster at view 1, every node [`uvrr::progress::Status::Normal`].
-fn assembled() -> Harness {
-    let mut h = Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    );
-    h.tick_all();
-    h.deliver_all();
-    for _ in 0..=TIMEOUT {
-        h.tick(n(1));
-    }
-    h.deliver_all();
-    h
-}
 
 fn run_case(role: Role, v: Rel) {
     let mut h = assembled();

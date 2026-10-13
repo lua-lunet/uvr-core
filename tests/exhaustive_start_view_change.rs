@@ -19,7 +19,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released, view};
+use common::{REL_ALL, Rel, TIMEOUT, n, rel, released, view};
 
 use harness::{Harness, StepOutcome, mint_id};
 use uvrr::ids::Slot;
@@ -28,8 +28,6 @@ use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// Whether the receiver already runs an attempt.
 #[rustfmt::skip]

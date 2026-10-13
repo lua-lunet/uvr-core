@@ -17,7 +17,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::op_id;
+use common::{op_id, view_selecting};
 use harness::{Harness, StepOutcome, provisioned_id as n, provisioned_member as member};
 use std::sync::Arc;
 
@@ -1303,24 +1303,6 @@ fn prepare_round(h: &mut Harness, leader: NodeId, backups: &[NodeId], committed_
     );
     h.quiesce();
     h.assert_safety();
-}
-
-/// The least view in `era` past the node's current one whose voter-only
-/// succession (§8.4) names `leader` primary: the between-eras view change
-/// that keeps the plan machine's leader in the chair.
-fn view_selecting(h: &Harness, leader: NodeId, era: Era) -> Ballot {
-    let snapshot = h.snapshot(leader).expect("live");
-    let table = h.era_table(leader).expect("live");
-    let record = table
-        .record(era)
-        .unwrap_or_else(|| panic!("era {era:?} is established"));
-    for index in snapshot.view + 1.. {
-        let view = View(index);
-        if record.config.primary(view) == Some(leader) {
-            return Ballot { era, view };
-        }
-    }
-    unreachable!("a view selecting the leader is representable")
 }
 
 /// Drives the ordinary view change into `target` with `leader` as both

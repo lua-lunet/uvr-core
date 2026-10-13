@@ -18,37 +18,14 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of};
+use common::{
+    TIMEOUT, bootstrap, current_era, current_view, current_weights, drive_view_change, knobs, n,
+    op_id, snap, status_of,
+};
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
+use uvrr::ids::{Era, NodeId, Slot, View};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
-
-/// The timeout knob for the view-change scripts (S4).
-const TIMEOUT: u64 = 3;
-
-fn knobs() -> uvrr::replica::ViewChangeKnobs {
-    uvrr::replica::ViewChangeKnobs {
-        primary_timeout: TIMEOUT,
-        view_change_budget: usize::MAX,
-    }
-}
-
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
-}
-
-/// The member weights of the node's current configuration, in order.
-fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
-    h.era_table(id)
-        .expect("the node is live")
-        .current()
-        .config
-        .order()
-        .iter()
-        .map(|member| u64::from(member.weight.0))
-        .collect()
-}
 
 /// The weight the node's current configuration gives `member`, if present.
 fn weight_of(h: &Harness, id: NodeId, member: NodeId) -> Option<u64> {
@@ -57,36 +34,6 @@ fn weight_of(h: &Harness, id: NodeId, member: NodeId) -> Option<u64> {
         .config
         .weight_of(member)
         .map(|weight| u64::from(weight.0))
-}
-
-/// The view-change target the fence machinery itself chooses for `node`.
-fn fence_target(h: &Harness, node: NodeId) -> Ballot {
-    let current = current_view(h, node);
-    Ballot {
-        era: current_era(h, node),
-        view: View(current.view.0 + 1),
-    }
-}
-
-/// Drives the view change the fence machinery targets, asserting every
-/// node in `live` installs it.
-fn drive_view_change(h: &mut Harness, live: &[NodeId]) -> Ballot {
-    let target = fence_target(h, live[0]);
-    let driver = live
-        .iter()
-        .copied()
-        .find(|&id| status_of(h, id) == Status::Normal)
-        .expect("a live Normal member drives the fence");
-    for _ in 0..=TIMEOUT {
-        h.tick(driver);
-    }
-    h.deliver_all();
-    for &id in live {
-        assert_eq!(status_of(h, id), Status::Normal, "{id:?} installs");
-        assert_eq!(current_view(h, id), target, "{id:?} is in the target");
-    }
-    h.assert_safety();
-    target
 }
 
 /// Play A: three nodes, n1 isolated, n3 crashes and reincarnates. The

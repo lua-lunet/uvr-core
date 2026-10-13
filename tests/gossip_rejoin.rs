@@ -20,36 +20,20 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
+use common::{
+    ALL, TIMEOUT, bootstrap, current_view, knobs, n, op_id, primary_of, snap, status_of,
+    three_node_cluster,
+};
 use harness::Harness;
 use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Tag};
 
-const ALL: [NodeId; 3] = [n(0), n(1), n(2)];
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-fn knobs() -> uvrr::replica::ViewChangeKnobs {
-    uvrr::replica::ViewChangeKnobs {
-        primary_timeout: TIMEOUT,
-        view_change_budget: usize::MAX,
-    }
-}
-
 /// The cluster with a statically registered witness: out of the roster,
 /// seeded into every node's gossip-witness list at startup, never purged.
 fn cluster_with_static_witness() -> Harness {
     Harness::with_static_witnesses(3, knobs(), &[n(9)])
-}
-
-fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
-    h.era_table(observer)?
-        .record(view.era)
-        .and_then(|record| record.config.primary(view.view))
 }
 
 /// The node that currently believes itself primary of the cluster's view.
