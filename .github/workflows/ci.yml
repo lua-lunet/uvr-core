@@ -98,16 +98,21 @@ jobs:
           fi
       # The demo's real socket transport links the paxe datagram codec
       # behind the `demo-locks` feature, and the codec links libsodium
-      # statically: every lane that builds `--all-features` needs the
-      # archive on the machine, or the link fails before any test runs. The
-      # feature is off in the default lane, so this is the whole of what a
-      # build without the demo needs.
+      # statically. The codec requires a libsodium with the hardware
+      # AES-256-GCM path and refuses to run without one, so the build machine
+      # must have one: Ubuntu 24.04 and Debian trixie on arm64 ship 1.0.18,
+      # whose archive has no ARM Crypto Extensions path and whose init
+      # therefore refuses. The Linux lane builds a pinned sodium from source
+      # instead of taking the distro package, which is what makes the sealed
+      # proofs run on arm64 rather than merely proving the refusal there.
+      # macOS needs none of this: Homebrew carries 1.0.22 with the path.
       - name: Ensure libsodium
         shell: bash
         run: |
           set -euo pipefail
           if [ "${{ runner.os }}" = "Linux" ]; then
-            sudo apt-get update && sudo apt-get install --yes libsodium-dev
+            SODIUM_PREFIX=/tmp/libsodium bash scripts/build_libsodium.sh
+            echo "PAXE_SODIUM_LIB_DIR=/tmp/libsodium/lib" >> "$GITHUB_ENV"
           else
             brew install libsodium
           fi
