@@ -18,7 +18,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released, view};
+use common::{REL_ALL, Rel, TIMEOUT, n, rel, released, view};
 
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::ids::{Era, OperationId, Slot};
@@ -28,7 +28,6 @@ use uvrr::observe::Diagnostic;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"fetched";
 
 /// Who the chunk claims to come from.

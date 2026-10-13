@@ -21,16 +21,13 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released};
+use common::{REL_ALL, Rel, assembled, n, rel, released};
 
-use harness::{Harness, StepOutcome, mint_pair};
+use harness::{StepOutcome, mint_pair};
 use uvrr::ids::{Ballot, Era, NodeId, OperationId, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// The receiver's role against the current view's primary.
 #[rustfmt::skip]
@@ -75,17 +72,6 @@ fn route(role: Role, sender: Sender, pair: Pair, r: Rel) -> Route {
 }
 
 /// A three-node cluster at view 1, every node [`uvrr::progress::Status::Normal`].
-#[rustfmt::skip]
-fn assembled() -> Harness {
-    let knobs = ViewChangeKnobs { primary_timeout: TIMEOUT, view_change_budget: usize::MAX };
-    let mut h = Harness::with_knobs(3, knobs);
-    h.tick_all();
-    h.deliver_all();
-    for _ in 0..=TIMEOUT { h.tick(n(1)); }
-    h.deliver_all();
-    h
-}
-
 #[rustfmt::skip]
 fn run_case(role: Role, sender: Sender, pair: Pair, r: Rel) {
     let (old_system, old_crash) = mint_pair();

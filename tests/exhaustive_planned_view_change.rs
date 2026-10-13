@@ -20,7 +20,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{n, released};
+use common::{TIMEOUT, n, released};
 
 use harness::{Harness, StepOutcome, mint_id};
 use uvrr::ids::{Ballot, Era, Slot, View};
@@ -29,8 +29,6 @@ use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// The solicitation's era against the successor era.
 #[rustfmt::skip]

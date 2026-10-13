@@ -17,7 +17,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{n, released, view};
+use common::{TIMEOUT, n, released, view};
 
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::configuration::{INIT_SLOT, SystemOperation};
@@ -29,7 +29,6 @@ use uvrr::progress::Status;
 use uvrr::replica::{PublishRefusal, ViewChangeKnobs};
 use uvrr::wire::{Header, Tag};
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"selected";
 
 /// The relation of one numeric field against the receiver's own value.

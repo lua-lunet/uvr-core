@@ -27,18 +27,9 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{n, op_id};
+use common::{genesis_view, n, op_id};
 
 use harness::{BoundaryEvent, Harness, StepOutcome};
-
-/// The view every node in these tests provisions and bootstraps into: era 1
-/// (genesis reconfiguration), view 0.
-fn genesis_view() -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View::INITIAL,
-    }
-}
 
 /// A three-node cluster past the bootstrap: the genesis primary promoted on
 /// the first tick, every backup adopted view 0 from the promotion's [`uvrr::wire::Tag::Commit`]

@@ -21,7 +21,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, view};
+use common::{REL_ALL, Rel, TIMEOUT, n, view};
 
 use harness::{Harness, StepOutcome, mint_id, mint_pair};
 use uvrr::effects::Effect;
@@ -31,7 +31,6 @@ use uvrr::observe::Diagnostic;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"packed";
 
 /// Who the ack claims to come from.

@@ -19,7 +19,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, n, three_node_cluster};
+use common::{TIMEOUT, bootstrap, n, three_node_cluster};
 use harness::StepOutcome;
 use uvrr::configuration::{Configuration, SystemOperation};
 use uvrr::effects::Stability;
@@ -27,9 +27,6 @@ use uvrr::ids::NodeId;
 use uvrr::journal::{Journal, SegmentedLog};
 use uvrr::quorum::{QuorumStrategy, Role, WeightedMajority};
 use uvrr::replica::{Input, Pivot, PlanRefusal, Replica, ViewChangeKnobs};
-
-/// The timeout knob for the view-change scripts.
-const TIMEOUT: u64 = 3;
 
 // ---------------------------------------------------------------------
 // Construction: the W/X/Y/Z membership sequence from §8.7.6

@@ -11,7 +11,10 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{current_view, op_id, snap, status_of, three_node_cluster, view};
+use common::{
+    TIMEOUT, current_era, current_view, era2_view, op_id, snap, status_of, three_node_cluster,
+    tick_into_view_change, view,
+};
 use harness::{Harness, StepOutcome, provisioned_id as n};
 use uvrr::configuration::{
     ConfigError, Configuration, INIT_SLOT, SystemOperation, VOID_SLOT, Weight,
@@ -26,27 +29,12 @@ use uvrr::quorum::{QuorumError, QuorumStrategy, R2Direction, Role};
 use uvrr::replica::{Input, PlanRefusal, Replica, TimedInput, ViewChangeKnobs};
 use uvrr::wire::{Header, Tag};
 
-/// A view in era 2, the era the first committed reconfiguration
-/// establishes.
-fn era2_view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(2),
-        view: View(number),
-    }
-}
-
 /// The primary of a view under the genesis order 0, 1, 2 (§1.2) while every
 /// member votes, the voter-only succession reduces to the modular position
 /// rule with no learner present. A configuration with a weight-0 member
 /// asserts its primary from the era table instead (§8.4).
 fn primary_of(view: Ballot) -> NodeId {
     n((view.view.0 % 3) as usize)
-}
-
-/// The newest era the node's committed configuration history has
-/// established (§8.7.1).
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
 }
 
 /// The member weights of the node's current configuration, in order,
@@ -60,20 +48,6 @@ fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
         .iter()
         .map(|member| u64::from(member.weight.0))
         .collect()
-}
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-/// Ticks a node until its timeout fires (one tick past the knob),
-/// asserting it fenced into exactly `target`.
-fn tick_into_view_change(h: &mut Harness, id: NodeId, target: Ballot) {
-    for _ in 0..=TIMEOUT {
-        h.tick(id);
-    }
-    assert_eq!(status_of(h, id), Status::ViewChange);
-    assert_eq!(current_view(h, id), target);
 }
 
 /// Drives a complete view change to `target` among the live nodes: the

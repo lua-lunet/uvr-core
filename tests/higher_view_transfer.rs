@@ -46,7 +46,9 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{current_view, n, op_id, snap, status_of, three_node_cluster, view};
+use common::{
+    TIMEOUT, commit_one, current_view, n, op_id, snap, status_of, three_node_cluster, view,
+};
 
 use harness::{Harness, StepOutcome};
 use uvrr::ids::{Ballot, Era, NodeId, Slot};
@@ -60,8 +62,6 @@ use uvrr::wire::{Header, Pack, Tag};
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const TIMEOUT: u64 = 3;
 
 /// An operation log entry at `slot`, the era-1 genesis kind every
 /// pre-reconfiguration journal holds.
@@ -111,16 +111,6 @@ fn bootstrap(h: &mut Harness) {
         );
     }
     h.assert_safety();
-}
-
-/// Drives one proposal at `primary` to full commitment at every
-/// reachable node and applies it where the commit landed.
-fn commit_one(h: &mut Harness, primary: NodeId, lsb: u64, payload: &[u8]) {
-    h.propose(primary, op_id(lsb), payload);
-    h.deliver_all();
-    for id in [n(0), n(1), n(2)] {
-        h.execute_apply_effects(id);
-    }
 }
 
 /// Drives `suspect` past the primary timeout so it enters view change

@@ -21,7 +21,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released, view};
+use common::{REL_ALL, Rel, TIMEOUT, n, rel, released, view};
 
 use harness::{Harness, StepOutcome, mint_id, mint_pair};
 use uvrr::configuration::SystemOperation;
@@ -33,7 +33,6 @@ use uvrr::progress::Status;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"reported";
 
 /// The evidence kind the body carries.

@@ -19,17 +19,15 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released, view};
+use common::{REL_ALL, Rel, TIMEOUT, n, rel, released, released_apply, view};
 
 use harness::{Harness, StepOutcome, mint_id, mint_pair};
-use uvrr::effects::Effect;
 use uvrr::ids::{OperationId, Slot};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
-const TIMEOUT: u64 = 3;
 const PAYLOAD: &[u8] = b"ordered";
 
 /// Who the acknowledgement claims to come from.
@@ -117,17 +115,6 @@ fn run_case(sender: Sender, v: Rel, s: Rel) {
                 && matches!(&m.body, Body::Commit { committed: Slot(x) } if *x == 3)),
                 "{sent:?}");
         }
-    }
-}
-
-#[rustfmt::skip]
-fn released_apply(outcome: &StepOutcome) -> Option<(Slot, OperationId)> {
-    match outcome {
-        StepOutcome::Published { effects, .. } => effects.iter().find_map(|e| match e {
-            Effect::Apply { slot, operation_id, .. } => Some((*slot, *operation_id)),
-            _ => None,
-        }),
-        _ => None,
     }
 }
 

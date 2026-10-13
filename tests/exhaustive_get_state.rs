@@ -20,7 +20,7 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released};
+use common::{REL_ALL, Rel, TIMEOUT, n, rel, released};
 
 use harness::{Harness, StepOutcome, mint_id};
 use uvrr::ids::{Ballot, Era, Slot, View};
@@ -28,8 +28,6 @@ use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// The responder's assembled boot status.
 #[rustfmt::skip]

@@ -35,7 +35,10 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
+use common::{
+    TIMEOUT, bootstrap, current_era, current_order, current_view, current_weights, fence_target, n,
+    op_id, snap, status_of, three_node_cluster, weights,
+};
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::configuration::{ConfigError, Configuration, INIT_SLOT, SystemOperation, VOID_SLOT};
 use uvrr::effects::Effect;
@@ -49,49 +52,6 @@ use uvrr::progress::Status;
 use uvrr::quorum::{QuorumStrategy, Role, WeightedMajority};
 use uvrr::replica::{PlanRefusal, forced_steps};
 use uvrr::wire::{Header, Pack, Tag, Unpack, UnpackError};
-
-/// The timeout knob for the view-change scripts: a node suspects its
-/// primary after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
-
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
-}
-
-/// The member weights of the node's current configuration, in order.
-fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
-    h.era_table(id)
-        .expect("the node is live")
-        .current()
-        .config
-        .order()
-        .iter()
-        .map(|member| u64::from(member.weight.0))
-        .collect()
-}
-
-/// The member identities of the node's current configuration, in order.
-fn current_order(h: &Harness, id: NodeId) -> Vec<NodeId> {
-    h.era_table(id)
-        .expect("the node is live")
-        .current()
-        .config
-        .order()
-        .iter()
-        .map(|member| member.node)
-        .collect()
-}
-
-/// The view-change target the fence machinery itself chooses for `node`:
-/// the next view in the era the committed history has established
-/// (§8.7.8). The primary of that view is whoever the position names.
-fn fence_target(h: &Harness, node: NodeId) -> Ballot {
-    let current = current_view(h, node);
-    Ballot {
-        era: current_era(h, node),
-        view: View(current.view.0 + 1),
-    }
-}
 
 /// Drives the view change the fence machinery targets, asserting every
 /// node in `live` installs it.
@@ -218,14 +178,6 @@ fn fold(ops: &[SystemOperation]) -> Configuration {
         config = config.apply(op, slot).expect("the step folds");
     }
     config
-}
-
-fn weights(config: &Configuration) -> Vec<u64> {
-    config
-        .order()
-        .iter()
-        .map(|member| u64::from(member.weight.0))
-        .collect()
 }
 
 /// Every consecutive pair of the sequence is quorum-safe: the closed gate

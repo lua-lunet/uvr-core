@@ -15,7 +15,7 @@
 #[path = "common/mod.rs"]
 mod common;
 
-use common::n;
+use common::{n, shape, weights};
 use proptest::prelude::*;
 use proptest::test_runner::TestCaseError;
 
@@ -76,25 +76,8 @@ fn committed_sequence(
     configs
 }
 
-fn weights(config: &Configuration) -> Vec<u64> {
-    config
-        .order()
-        .iter()
-        .map(|member| u64::from(member.weight.0))
-        .collect()
-}
-
 fn order(config: &Configuration) -> Vec<NodeId> {
     config.order().iter().map(|member| member.node).collect()
-}
-
-/// The members' `(node, weight)` pairs, in order.
-fn shape(config: &Configuration) -> Vec<(NodeId, u32)> {
-    config
-        .order()
-        .iter()
-        .map(|member| (member.node, member.weight.0))
-        .collect()
 }
 
 /// Every consecutive pair of the sequence is quorum-safe (the closed gate

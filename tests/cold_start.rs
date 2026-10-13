@@ -61,7 +61,9 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{current_view, n, op_id, snap, status_of};
+use common::{
+    TIMEOUT, applied_payloads, current_era, current_view, n, op_id, primary_of, snap, status_of,
+};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{INIT_SLOT, SystemOperation};
 use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
@@ -70,10 +72,6 @@ use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Tag};
-
-/// The timeout knob: a suspecting node, [`uvrr::progress::Status::Normal`] backup or [`uvrr::progress::Status::Restarting`]
-/// member (§5), fires after more than three ticks of silence (S4).
-const TIMEOUT: u64 = 3;
 
 /// The staggered-start window multiplier: several `primary_timeout`
 /// windows per phase, so a phase that fires nothing fires nothing over a
@@ -103,16 +101,6 @@ fn bootstrap(h: &mut Harness) {
     h.assert_safety();
 }
 
-fn current_era(h: &Harness, id: NodeId) -> Era {
-    h.era_table(id).expect("the node is live").current().era
-}
-
-fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
-    h.era_table(observer)?
-        .record(view.era)
-        .and_then(|record| record.config.primary(view.view))
-}
-
 /// Drives the view change the fence machinery targets, asserting every
 /// live node installs it (the `tests/reincarnation.rs` idiom).
 fn drive_view_change(h: &mut Harness, live: &[NodeId]) -> Ballot {
@@ -136,14 +124,6 @@ fn drive_view_change(h: &mut Harness, live: &[NodeId]) -> Ballot {
     }
     h.assert_safety();
     target
-}
-
-/// The payloads a node has applied, in slot order.
-fn applied_payloads(h: &Harness, id: NodeId) -> Vec<Vec<u8>> {
-    h.applied(id)
-        .iter()
-        .map(|(_, payload)| payload.to_vec())
-        .collect()
 }
 
 /// Commits one client value at `primary` and applies it everywhere: the

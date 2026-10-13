@@ -27,33 +27,15 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{op_id, view};
+use common::{op_id, payload_of, view, view_selecting};
 use harness::{Harness, StepOutcome, provisioned_id as n, provisioned_member as member};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
+use uvrr::ids::{Era, NodeId, Slot};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::plan::Plan;
 use uvrr::wire::{Header, Tag};
-
-/// The least view in `era` past the leader's current one whose voter-only
-/// succession (§8.4) names `leader` primary: the host-paced view change
-/// into an established era (`docs/uvrr-fuse.md` §4 step 4, §6).
-fn view_selecting(h: &Harness, leader: NodeId, era: Era) -> Ballot {
-    let snapshot = h.snapshot(leader).expect("live");
-    let table = h.era_table(leader).expect("live");
-    let record = table
-        .record(era)
-        .unwrap_or_else(|| panic!("era {era:?} is established"));
-    for index in snapshot.view + 1.. {
-        let view = View(index);
-        if record.config.primary(view) == Some(leader) {
-            return Ballot { era, view };
-        }
-    }
-    unreachable!("a view selecting the leader is representable")
-}
 
 /// The two operations the join-and-promote step packs, in plan order:
 /// the learner join and its promotion, one era per establishing slot.
@@ -103,15 +85,6 @@ fn three_learner_joins_plan() -> Plan {
         initial: vec![member(0, 1), member(1, 1), member(2, 1)],
         steps: vec![three_learner_join_ops()],
     }
-}
-
-/// The operation payload bytes of a journal entry (system entries panic;
-/// the scripts only inspect operation slots through this helper).
-fn payload_of(entry: &LogEntry) -> &[u8] {
-    let Payload::Operation { payload, .. } = &entry.payload else {
-        panic!("expected an operation payload at {:?}", entry.slot);
-    };
-    payload
 }
 
 /// Asserts the journal at `id` carries `ops` one per slot from `first`

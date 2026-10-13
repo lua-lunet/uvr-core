@@ -12,7 +12,10 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster, view};
+use common::{
+    TIMEOUT, bootstrap, current_view, n, op_id, payload_of, snap, status_of, three_node_cluster,
+    tick_into_view_change, view,
+};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{INIT_SLOT, SystemOperation};
 use uvrr::ids::{Ballot, Era, Fault, NodeId, Slot};
@@ -28,35 +31,12 @@ fn primary_of(view: Ballot) -> NodeId {
     n(view.view.0 % 3)
 }
 
-/// The operation payload bytes of a journal entry (genesis entries panic;
-/// the tests only inspect operation slots).
-fn payload_of(entry: &LogEntry) -> &[u8] {
-    let Payload::Operation { payload, .. } = &entry.payload else {
-        panic!("expected an operation payload at {:?}", entry.slot);
-    };
-    payload
-}
-
 /// Executes every pending [`uvrr::effects::Effect::Apply`] at the given nodes (one harness step per
 /// effect), the way a host would.
 fn apply_all(h: &mut Harness, ids: [u32; 3]) {
     for id in ids {
         h.execute_apply_effects(n(id));
     }
-}
-
-/// The timeout knob used by every test in this suite: a backup enters a view
-/// change after more than three ticks of primary silence (S4).
-const TIMEOUT: u64 = 3;
-
-/// Ticks a node until its timeout fires (one tick past the knob), asserting
-/// it fenced into exactly `target`.
-fn tick_into_view_change(h: &mut Harness, id: NodeId, target: Ballot) {
-    for _ in 0..=TIMEOUT {
-        h.tick(id);
-    }
-    assert_eq!(status_of(h, id), Status::ViewChange);
-    assert_eq!(current_view(h, id), target);
 }
 
 /// The era-1 proof every fabricated message in this suite carries: the real

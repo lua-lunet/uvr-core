@@ -43,18 +43,11 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::n;
+use common::{genesis_view, n};
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
-
-fn genesis_view() -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View::INITIAL,
-    }
-}
 
 fn prepare(slot: u64) -> Message {
     Message {

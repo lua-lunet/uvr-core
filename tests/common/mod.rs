@@ -41,9 +41,11 @@
 
 #![allow(dead_code, unused_imports)]
 
+use uvrr::configuration::Configuration;
 use uvrr::conformance::harness::{Harness, StepOutcome};
 use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, SystemId, View};
+use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::Message;
 use uvrr::progress::{ProgressSnapshot, Status};
 use uvrr::replica::ViewChangeKnobs;
@@ -142,4 +144,198 @@ pub fn rel(r: Rel, base: u64) -> u64 {
         Rel::Equal => base,
         Rel::Greater => base + 1,
     }
+}
+
+/// The view-change timeout the scripts share: a node suspects its primary
+/// after more than three ticks of silence (S4).
+pub const TIMEOUT: u64 = 3;
+
+/// The three members of the cluster the rejoin scripts rehearse.
+pub const ALL: [NodeId; 3] = [n(0), n(1), n(2)];
+
+/// The era the node's committed history has established.
+pub fn current_era(h: &Harness, id: NodeId) -> Era {
+    h.era_table(id).expect("the node is live").current().era
+}
+
+/// The primary of a view, as the observer's own era table names it.
+pub fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
+    h.era_table(observer)?
+        .record(view.era)
+        .and_then(|record| record.config.primary(view.view))
+}
+
+/// The member weights of the node's current configuration, in order.
+pub fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
+    h.era_table(id)
+        .expect("the node is live")
+        .current()
+        .config
+        .order()
+        .iter()
+        .map(|member| u64::from(member.weight.0))
+        .collect()
+}
+
+/// The member identities of the node's current configuration, in order.
+pub fn current_order(h: &Harness, id: NodeId) -> Vec<NodeId> {
+    h.era_table(id)
+        .expect("the node is live")
+        .current()
+        .config
+        .order()
+        .iter()
+        .map(|member| member.node)
+        .collect()
+}
+
+/// The view-change target the fence machinery itself chooses for `node`:
+/// the next view in the era the committed history has established
+/// (§8.7.8). The primary of that view is whoever the position names.
+pub fn fence_target(h: &Harness, node: NodeId) -> Ballot {
+    let current = current_view(h, node);
+    Ballot {
+        era: current_era(h, node),
+        view: View(current.view.0 + 1),
+    }
+}
+
+/// Drives the view change the fence machinery targets, asserting every
+/// node in `live` installs it.
+pub fn drive_view_change(h: &mut Harness, live: &[NodeId]) -> Ballot {
+    let target = fence_target(h, live[0]);
+    let driver = live
+        .iter()
+        .copied()
+        .find(|&id| status_of(h, id) == Status::Normal)
+        .expect("a live Normal member drives the fence");
+    for _ in 0..=TIMEOUT {
+        h.tick(driver);
+    }
+    h.deliver_all();
+    for &id in live {
+        assert_eq!(status_of(h, id), Status::Normal, "{id:?} installs");
+        assert_eq!(current_view(h, id), target, "{id:?} is in the target");
+    }
+    h.assert_safety();
+    target
+}
+
+/// Ticks the node into view change and asserts it installed `target`.
+pub fn tick_into_view_change(h: &mut Harness, id: NodeId, target: Ballot) {
+    for _ in 0..=TIMEOUT {
+        h.tick(id);
+    }
+    assert_eq!(status_of(h, id), Status::ViewChange);
+    assert_eq!(current_view(h, id), target);
+}
+
+/// A ballot in era 2, the era a pivot reconfiguration establishes.
+pub fn era2_view(number: u32) -> Ballot {
+    Ballot {
+        era: Era(2),
+        view: View(number),
+    }
+}
+
+/// The genesis view: era 1, the initial view.
+pub fn genesis_view() -> Ballot {
+    Ballot {
+        era: Era(1),
+        view: View::INITIAL,
+    }
+}
+
+/// The next view in `era` whose configuration selects `leader`.
+pub fn view_selecting(h: &Harness, leader: NodeId, era: Era) -> Ballot {
+    let snapshot = h.snapshot(leader).expect("live");
+    let table = h.era_table(leader).expect("live");
+    let record = table
+        .record(era)
+        .unwrap_or_else(|| panic!("era {era:?} is established"));
+    for index in snapshot.view + 1.. {
+        let view = View(index);
+        if record.config.primary(view) == Some(leader) {
+            return Ballot { era, view };
+        }
+    }
+    unreachable!("a view selecting the leader is representable")
+}
+
+/// A three-node cluster at view 1, every node Normal: the baseline the
+/// exhaustive case drivers assemble their scenarios on.
+#[rustfmt::skip]
+pub fn assembled() -> Harness {
+    let knobs = ViewChangeKnobs { primary_timeout: TIMEOUT, view_change_budget: usize::MAX };
+    let mut h = Harness::with_knobs(3, knobs);
+    h.tick_all();
+    h.deliver_all();
+    for _ in 0..=TIMEOUT { h.tick(n(1)); }
+    h.deliver_all();
+    h
+}
+
+/// The timeout knobs the rejoin scripts share, at [`TIMEOUT`].
+pub fn knobs() -> uvrr::replica::ViewChangeKnobs {
+    uvrr::replica::ViewChangeKnobs {
+        primary_timeout: TIMEOUT,
+        view_change_budget: usize::MAX,
+    }
+}
+
+/// The operation payload a committed entry carries.
+pub fn payload_of(entry: &LogEntry) -> &[u8] {
+    let Payload::Operation { payload, .. } = &entry.payload else {
+        panic!("expected an operation payload at {:?}", entry.slot);
+    };
+    payload
+}
+
+/// The apply effect one step released, if any.
+pub fn released_apply(outcome: &StepOutcome) -> Option<(Slot, OperationId)> {
+    match outcome {
+        StepOutcome::Published { effects, .. } => effects.iter().find_map(|e| match e {
+            Effect::Apply {
+                slot, operation_id, ..
+            } => Some((*slot, *operation_id)),
+            _ => None,
+        }),
+        _ => None,
+    }
+}
+
+/// Commits one operation through the primary and applies the effects at
+/// every node.
+pub fn commit_one(h: &mut Harness, primary: NodeId, lsb: u64, payload: &[u8]) {
+    h.propose(primary, op_id(lsb), payload);
+    h.deliver_all();
+    for id in [n(0), n(1), n(2)] {
+        h.execute_apply_effects(id);
+    }
+}
+
+/// The payloads the node has applied, in order.
+pub fn applied_payloads(h: &Harness, id: NodeId) -> Vec<Vec<u8>> {
+    h.applied(id)
+        .iter()
+        .map(|(_, payload)| payload.to_vec())
+        .collect()
+}
+
+/// The configuration's (node, weight) shape, in order.
+pub fn shape(config: &Configuration) -> Vec<(NodeId, u32)> {
+    config
+        .order()
+        .iter()
+        .map(|member| (member.node, member.weight.0))
+        .collect()
+}
+
+/// The configuration's member weights, in order.
+pub fn weights(config: &Configuration) -> Vec<u64> {
+    config
+        .order()
+        .iter()
+        .map(|member| u64::from(member.weight.0))
+        .collect()
 }

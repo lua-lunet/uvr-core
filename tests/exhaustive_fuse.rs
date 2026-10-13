@@ -21,17 +21,14 @@ mod harness;
 #[path = "common/mod.rs"]
 mod common;
 
-use common::{REL_ALL, Rel, n, rel, released, view};
+use common::{REL_ALL, Rel, assembled, n, rel, released, view};
 
-use harness::{Harness, StepOutcome, mint_id, mint_pair};
+use harness::{StepOutcome, mint_id, mint_pair};
 use uvrr::configuration::SystemOperation;
 use uvrr::ids::{NodeId, OperationId, Slot};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
-
-const TIMEOUT: u64 = 3;
 
 /// The packed schedule's legality against the configuration fold.
 #[rustfmt::skip]
@@ -53,17 +50,6 @@ fn route(v: Rel, s: Rel, ops: Ops) -> Route {
 }
 
 /// A three-node cluster at view 1, the receiver a [`uvrr::progress::Status::Normal`] backup.
-#[rustfmt::skip]
-fn assembled() -> Harness {
-    let knobs = ViewChangeKnobs { primary_timeout: TIMEOUT, view_change_budget: usize::MAX };
-    let mut h = Harness::with_knobs(3, knobs);
-    h.tick_all();
-    h.deliver_all();
-    for _ in 0..=TIMEOUT { h.tick(n(1)); }
-    h.deliver_all();
-    h
-}
-
 #[rustfmt::skip]
 fn run_case(v: Rel, s: Rel, ops: Ops) {
     let (system, crash) = mint_pair();
