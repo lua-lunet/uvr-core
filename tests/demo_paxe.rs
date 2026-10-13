@@ -241,6 +241,53 @@ struct Cluster {
     clock: u64,
 }
 
+/// Whether this host can run PAXE at all, and if not, the refusal it names.
+///
+/// The codec's own law is that a startup-check failure is fatal for PAXE: the
+/// host refuses to enable it and surfaces the cause verbatim, never
+/// degrading to a weaker cipher. Some distro libsodium builds ship without the
+/// hardware AES-256-GCM path (Ubuntu 24.04 and Debian trixie arm64 are the
+/// named ones), and a host like that must REFUSE. So the sealed proofs below
+/// run where the cipher is available, and where it is not, the refusal itself
+/// is what gets proved, with its cause named rather than swallowed.
+fn paxe_refusal() -> Option<String> {
+    let probe = std::net::UdpSocket::bind("127.0.0.1:0").expect("the probe socket binds");
+    let shape = PaxeConfig {
+        own: n(0),
+        paxe_id: 1,
+        channel: CHANNEL,
+        epoch: EPOCH,
+        peers: Vec::new(),
+    };
+    PaxeTransport::mount(probe, shape)
+        .err()
+        .map(|e| e.to_string())
+}
+
+/// Proves the refusal on a host that cannot run PAXE, and reports whether the
+/// caller should run the sealed proofs instead.
+///
+/// A skip is not a pass. Where the host's libsodium has no hardware
+/// AES-256-GCM path, the transport's refusal is the claim under test, and it
+/// is asserted here with its cause intact: a refusal that names the distro
+/// build that caused it is a working refusal. Returns true when the sealed
+/// proofs should run.
+#[must_use]
+fn host_can_seal(reason: &str) -> bool {
+    match paxe_refusal() {
+        None => true,
+        Some(cause) => {
+            assert!(
+                cause.contains("AES-256-GCM") || cause.contains("AesGcmUnavailable"),
+                "the transport refused for a cause the sealed proofs do not \
+                 expect, so this is a defect and not a host limitation: {cause}"
+            );
+            println!("skipping {reason}: {cause}");
+            false
+        }
+    }
+}
+
 impl Cluster {
     /// The genesis nodes, each a first life over its own socket, and the
     /// socket a reincarnation will take when it comes.
@@ -677,6 +724,10 @@ fn client_observation(cluster: &mut Cluster, lock_id: u64, id: u64) -> Operation
 
 #[test]
 fn a_crash_at_a_named_commit_reincarnates_over_the_encrypted_link_and_the_locks_survive() {
+    assert!(
+        host_can_seal("the crash story over the encrypted link"),
+        "the transport refused, and the refusal above names the cause"
+    );
     let mut cluster = Cluster::provision(3);
     cluster.bootstrap();
     let client_a = client(1, 1);
@@ -824,6 +875,10 @@ fn a_crash_at_a_named_commit_reincarnates_over_the_encrypted_link_and_the_locks_
 
 #[test]
 fn a_datagram_on_the_wire_is_a_sealed_frame_that_only_its_link_key_opens() {
+    assert!(
+        host_can_seal("the sealed frame on the wire"),
+        "the transport refused, and the refusal above names the cause"
+    );
     // The tap stands on the wire for a peer the sender is configured to
     // believe in, so what it reads is a datagram the sender really sent.
     let tap = bind();
@@ -947,6 +1002,35 @@ fn a_datagram_on_the_wire_is_a_sealed_frame_that_only_its_link_key_opens() {
 #[test]
 fn a_transport_refuses_an_environment_or_configuration_it_cannot_serve() {
     let socket = bind();
+
+    // A host that cannot run PAXE at all refuses EVERY configuration, the
+    // unusable ones included, because the codec's startup contract runs
+    // before a configuration is interpreted: an operator on such a host is
+    // told the environment is the problem, not sent hunting a configuration
+    // that would have been refused anyway. The precedence is the claim.
+    if let Some(cause) = paxe_refusal() {
+        let refused = PaxeTransport::mount(
+            socket.try_clone().expect("the socket duplicates"),
+            PaxeConfig {
+                own: n(0),
+                paxe_id: 1,
+                channel: CHANNEL,
+                epoch: 32,
+                peers: Vec::new(),
+            },
+        )
+        .err()
+        .map(|e| e.to_string())
+        .expect("a host without the cipher cannot mount any transport");
+        assert!(
+            refused.contains("libsodium"),
+            "the startup contract answers before the configuration is read, \
+             so the unusable epoch is not what is reported: {refused}"
+        );
+        println!("the environment refusal answers first here: {cause}");
+        return;
+    }
+
     // An epoch the 5-bit wire field cannot hold is refused at the mount, not
     // masked onto the wire.
     let refused = PaxeTransport::mount(

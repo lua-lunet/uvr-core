@@ -149,6 +149,26 @@ pub enum PaxeRefusal {
     Peer(String),
 }
 
+/// The refusal as an operator reads it: the cause verbatim, never a summary
+/// of it. The codec's own law is that a startup-check failure is fatal for
+/// the transport and its reason is surfaced whole, because the reason names
+/// what would satisfy it.
+impl std::fmt::Display for PaxeRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sodium(e) => write!(f, "libsodium refused the transport: {e}"),
+            Self::Epoch(epoch) => {
+                write!(
+                    f,
+                    "epoch {epoch} is not representable in the 5-bit wire field"
+                )
+            }
+            Self::Keystore(e) => write!(f, "the keystore refused a configured link key: {e}"),
+            Self::Peer(why) => write!(f, "the configuration cannot be routed: {why}"),
+        }
+    }
+}
+
 /// One node's end of the real wire: a bound socket, paxe's keystore for its
 /// links, and the counters an operator reads when a link is not carrying
 /// what it should.
