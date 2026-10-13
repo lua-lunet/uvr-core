@@ -58,7 +58,7 @@ if rg -in 'paxos' src/ tests/; then
 	echo "pre-push: the banned name found in src or tests" >&2
 	exit 1
 fi
-if git ls-files | rg -v '^maelstrom|^research/|^formal/|\.github/' | xargs rg -n 'item[0-9]'; then
+if git ls-files | rg -v '^maelstrom|^study/|^formal/|\.github/' | xargs rg -n 'item[0-9]'; then
 	echo "pre-push: scratch-work numbering found in the product tree" >&2
 	exit 1
 fi < /dev/null

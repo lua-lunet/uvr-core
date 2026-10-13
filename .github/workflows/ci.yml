@@ -156,9 +156,10 @@ jobs:
           ! rg -n '#\[cfg\(test\)\]|mod tests' src
           ! rg -in 'paxos' src/ tests/
           # `item[0-9]` is scratch-work numbering: forbidden in the product
-          # tree, exempt in the committed evidence archives (research/ and
-          # the dated formal/ reports and lab book).
-          ! (git ls-files | rg -v '^maelstrom|^research/|^formal/|\.github/' | xargs rg -n 'item[0-9]')
+          # tree, exempt in the committed evidence archives (study/, the
+          # literature and its dated extractions, and the dated formal/
+          # reports and lab book).
+          ! (git ls-files | rg -v '^maelstrom|^study/|^formal/|\.github/' | xargs rg -n 'item[0-9]')
 
   # Tagged releases only. The tag's jobs are regeneration and
   # publication, in this order and nothing else: the manifest is stamped
