@@ -95,6 +95,25 @@ deliverable. Run the full lane with the harness before any push:
 cargo test --features maelstrom
 ```
 
+### The locks demo lane
+
+The `demo-locks` feature carries the advisory-locks scaffold and its real
+socket transport, which seals every datagram with the
+[PAXE](https://github.com/lua-lunet/paxe-core) codec. The codec links libsodium statically and requires a build of it with
+the hardware AES-256-GCM path; without one it refuses to run, by design,
+naming the cause rather than falling back to a weaker cipher. That makes
+the build machine's sodium part of this feature's requirements:
+
+- **macOS**: `brew install libsodium` (1.0.22 carries the path).
+- **Linux**: `SODIUM_PREFIX=/tmp/libsodium bash scripts/build_libsodium.sh`,
+  then `export PAXE_SODIUM_LIB_DIR=/tmp/libsodium/lib`. The distro package is
+  not enough on arm64: Ubuntu 24.04 and Debian trixie ship 1.0.18, whose
+  archive has no ARM Crypto Extensions path. The script pins the tarball by
+  digest and builds it static-only.
+
+The CI lanes do exactly this, which is why the sealed-transport proofs run
+on every runner rather than only where the cipher happens to exist.
+
 ### The compliance corpus
 
 The protocol's obligations are a corpus of test cases stated as data
