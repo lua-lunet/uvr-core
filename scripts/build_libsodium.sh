@@ -21,10 +21,18 @@
 # Usage: SODIUM_PREFIX=/tmp/libsodium scripts/build_libsodium.sh
 set -euo pipefail
 
-# 1.0.21 is the first release whose aarch64 build carries the ARM Crypto
-# Extensions path. The digest is the tarball's, verified on every run.
-VERSION="1.0.21"
-SHA256="9e4285c7a419e82dedb0be63a72eea357d6943bc3e28e6735bf600dd4883feaf"
+# 1.0.22 is the release that has both properties this needs: the aarch64
+# build carries the ARM Crypto Extensions path, and its sources compile
+# under the arm64 GCC in current runners. 1.0.21 fails to build there
+# (crypto_ipcrypt/ipcrypt_armcrypto.c reinterprets an int8x16_t as uint8x16_t,
+# which GCC rejects, upstream having fixed the signedness in 1.0.22). It is
+# also what the macOS lane already gets from Homebrew, so both lanes agree.
+#
+# The digest is of the tarball fetched from the URL below and is verified on
+# every run. libsodium publishes no checksum file at its release index, so
+# this pin is recorded from the download itself rather than from upstream.
+VERSION="1.0.22"
+SHA256="adbdd8f16149e81ac6078a03aca6fc03b592b89ef7b5ed83841c086191be3349"
 TARBALL="libsodium-${VERSION}.tar.gz"
 URL="https://download.libsodium.org/libsodium/releases/${TARBALL}"
 PREFIX="${SODIUM_PREFIX:-/tmp/libsodium}"
