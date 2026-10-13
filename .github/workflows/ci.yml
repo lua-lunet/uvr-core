@@ -125,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo test --all-features --test compliance -- --ignored export_corpus
+          cargo test --features serde --test compliance -- --ignored export_corpus
           git diff --exit-code -- tests/compliance/corpus
       # The repository verification gate, run exactly as it is run locally.
       - name: Verification gate
@@ -222,7 +222,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo test --all-features --test compliance -- --ignored export_corpus
+          cargo test --features serde --test compliance -- --ignored export_corpus
       # The release's one attachment: the generated compliance corpus and
       # nothing else. The corpus directory is wholly generated. The
       # listing is in the log because the release body does not enumerate

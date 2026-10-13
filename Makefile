@@ -63,7 +63,7 @@ test:
 # (see tests/compliance/mod.rs). This target wraps the exporter exactly
 # as it is invoked, so there is one spelling.
 corpus-export:
-	cargo test --all-features --test compliance -- --ignored export_corpus
+	cargo test --features serde --test compliance -- --ignored export_corpus
 
 check:
 	cargo fmt -- --check
