@@ -25,60 +25,21 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, View};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Tag};
 
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        uvrr::replica::ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 fn current_era(h: &Harness, id: NodeId) -> Era {
     h.era_table(id).expect("the node is live").current().era
@@ -315,7 +276,7 @@ fn catch_up(h: &mut Harness, learner: NodeId) {
 /// its vote is the difference.
 #[test]
 fn a_joiner_admitted_several_eras_past_its_boot_table_when_promoted_keeps_the_cluster_committing() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     joined_and_caught_up(&mut h);
 
     // The second and third joiners admit across successive eras.
@@ -411,7 +372,7 @@ fn a_joiner_admitted_several_eras_past_its_boot_table_when_promoted_keeps_the_cl
 /// influencing a quorum while its weight is 0.
 #[test]
 fn joined_learner_folds_its_admitting_era_and_catches_up() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     joined_and_caught_up(&mut h);
     // The learner's journal is the leader's: the fetched range supplied
     // the establishing Join and the stream kept it current.
@@ -434,7 +395,7 @@ fn joined_learner_folds_its_admitting_era_and_catches_up() {
 /// 4) commits only when the promoted member votes.
 #[test]
 fn learner_cannot_influence_until_its_committed_increment_then_participates() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     let target = joined_and_caught_up(&mut h);
     // The primary of the era-2 view proposes the promotion. The learner's
     // vote, injected at the primary, is discarded by name: weight 0
@@ -505,7 +466,7 @@ fn learner_cannot_influence_until_its_committed_increment_then_participates() {
 /// the rule opened, and the refusal never faults the responder.
 #[test]
 fn the_serving_gate_still_refuses_a_non_member() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     joined_and_caught_up(&mut h);
     let request = Message {
         header: Header {
@@ -545,7 +506,7 @@ fn the_serving_gate_still_refuses_a_non_member() {
 /// reaches learners) carries the tail.
 #[test]
 fn the_acquisition_completes_when_the_responder_runs_ahead_of_the_offer() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.boot_as(n(3))
         .expect("the joiner boots over genesis knowledge");
@@ -657,7 +618,7 @@ fn the_acquisition_completes_when_the_responder_runs_ahead_of_the_offer() {
 /// removes only the requested-era disjunct, never the service.
 #[test]
 fn the_serving_gate_answers_a_fetch_from_a_past_window_era() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     joined_and_caught_up(&mut h);
     // A second reconfiguration folds era 3 at every incumbent: the
     // retention window is now [2, 3] and era 1, the learner's boot era,
@@ -719,7 +680,7 @@ fn the_serving_gate_answers_a_fetch_from_a_past_window_era() {
 /// [`uvrr::configuration::SystemOperation::Double`]) arrives: three eras past the boot view, one past `next`.
 #[test]
 fn a_far_future_offer_that_names_nobody_is_dropped_at_the_boot_fence() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.boot_as(n(3))
         .expect("the joiner boots over genesis knowledge");
@@ -812,7 +773,7 @@ fn a_far_future_offer_that_names_nobody_is_dropped_at_the_boot_fence() {
 /// announcement is the learner's first sight, two eras past its boot view.
 #[test]
 fn a_far_future_offer_naming_the_boot_fenced_member_through_its_increment_is_retained() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.boot_as(n(3))
         .expect("the joiner boots over genesis knowledge");
@@ -886,7 +847,7 @@ fn a_far_future_offer_naming_the_boot_fenced_member_through_its_increment_is_ret
 /// has its stream recorded undeliverable, by the harness's own terms.
 #[test]
 fn a_far_future_offer_naming_the_boot_fenced_member_through_a_batch_is_retained() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.boot_as(n(3))
         .expect("the joiner boots over genesis knowledge");
@@ -975,7 +936,7 @@ fn a_far_future_offer_naming_the_boot_fenced_member_through_a_batch_is_retained(
 /// on.
 #[test]
 fn the_walked_fetch_rides_the_walked_view_across_two_era_windows() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.boot_as(n(3))
         .expect("the joiner boots over genesis knowledge");

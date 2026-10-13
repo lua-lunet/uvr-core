@@ -24,28 +24,18 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{op_id, view};
 use harness::{Harness, StepOutcome, provisioned_id as n, provisioned_member as member};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, Era, NodeId, OperationId, Slot, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::journal::{LogEntry, Payload};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::plan::Plan;
 use uvrr::wire::{Header, Tag};
-
-/// A view in era 1: every scenario here is same-era (W1).
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The least view in `era` past the leader's current one whose voter-only
 /// succession (§8.4) names `leader` primary: the host-paced view change

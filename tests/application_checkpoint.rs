@@ -22,38 +22,18 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{n, op_id, snap, status_of};
 use harness::{Harness, StepOutcome};
 use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::progress::{ProgressSnapshot, Status};
+use uvrr::progress::Status;
 use uvrr::replica::PlanRefusal;
 use uvrr::wire::{Header, Tag};
-
-/// Node id shorthand (the harness's own pattern).
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
-/// The snapshot of a live node (tests never snapshot a crashed one).
-fn snap(h: &Harness, id: NodeId) -> ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 /// Bootstraps the cluster: the genesis primary promotes itself and both
 /// backups adopt view (1, 0).

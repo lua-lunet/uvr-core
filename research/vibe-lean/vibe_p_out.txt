@@ -1,1 +1,0 @@
-<vibe_stop_event>Turn limit of 6 reached</vibe_stop_event>

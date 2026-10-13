@@ -330,4 +330,4 @@ voter is `f` (`a` starts in the leader role, `d` remains outside the voter set
 and is never eligible for it) and the recursion/majority machinery generalizes
 to any member count. The five-node config was also offered to the symbolic
 checker Apalache, which rejected the model outright; that outcome is recorded
-in `research/apalache-smoke.md`.
+in the archived tree at tag dumpster-before-paper-reorg (`research/apalache-smoke.md`).

@@ -14,12 +14,16 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::op_id;
 use harness::{Harness, StepOutcome, provisioned_id as n, provisioned_member as member};
 use std::sync::Arc;
 
 use uvrr::configuration::SystemOperation;
 use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, Era, NodeId, OperationId, Slot, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::journal::Payload;
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
@@ -382,12 +386,6 @@ fn assert_journal_unchanged_and_refused(h: &Harness, id: NodeId) {
 // 6. The leader transition (§4): the armed schedule's establishing batch
 //    travels as one Fuse per backup.
 // ---------------------------------------------------------------------------
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The 3-node two-step reincarnation shape
 /// (`docs/uvrr-protocols.md`, the reincarnation chapter §5, the weight-1 row) submitted as an

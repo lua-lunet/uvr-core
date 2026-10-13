@@ -16,38 +16,19 @@
 #[path = "harness/mod.rs"]
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{REL_ALL, Rel, n, view};
+
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::{Header, Tag};
 
 const TIMEOUT: u64 = 3;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
-/// The relation of one numeric field against the receiver's own.
-#[derive(Clone, Copy)]
-enum Rel {
-    Less,
-    Equal,
-    Greater,
-}
-
-const REL_ALL: [Rel; 3] = [Rel::Less, Rel::Equal, Rel::Greater];
 
 /// The receiver's role against the current view's primary.
 #[derive(Clone, Copy)]

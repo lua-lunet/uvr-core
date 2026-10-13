@@ -12,24 +12,17 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
 use uvrr::wire::{Header, Pack, Tag};
 
 const ALL: [NodeId; 3] = [n(0), n(1), n(2)];
-
-const fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// A journal entry as the wire packs it, for budget arithmetic.
 fn operation_entry(slot: u64, lsb: u64, payload: &[u8]) -> uvrr::journal::LogEntry {
@@ -46,38 +39,6 @@ fn operation_entry(slot: u64, lsb: u64, payload: &[u8]) -> uvrr::journal::LogEnt
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        uvrr::replica::ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 fn primary_of(h: &Harness, observer: NodeId, view: Ballot) -> Option<NodeId> {
     h.era_table(observer)?
@@ -167,7 +128,7 @@ fn serve(h: &mut Harness, all: &[NodeId], ops: &mut u64) {
 /// cluster's current view with the cluster's committed frontier.
 #[test]
 fn a_restarted_node_adopts_completions_while_the_cluster_churns() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let live = [n(1), n(2)];
 
@@ -231,7 +192,7 @@ fn a_restarted_node_adopts_completions_while_the_cluster_churns() {
 /// completion or win an attempt before the next rotation retargets it.
 #[test]
 fn a_restarted_node_converges_under_a_dense_churn_storm() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let live = [n(1), n(2)];
 
@@ -288,7 +249,7 @@ fn a_restarted_node_converges_under_a_dense_churn_storm() {
 /// views/s climb, a forced view per arrival in the limbo.
 #[test]
 fn a_forced_view_poll_on_the_restarted_node_still_converges() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let live = [n(1), n(2)];
 
@@ -425,7 +386,7 @@ fn a_frontier_gap_rejoins_through_the_fetch_under_churn() {
 /// membership, and the seated member must then survive the churn.
 #[test]
 fn a_reincarnated_identity_is_seated_by_the_forced_sequence_then_survives_churn() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let live = [n(1), n(2)];
 
@@ -506,7 +467,7 @@ fn a_reincarnated_identity_is_seated_by_the_forced_sequence_then_survives_churn(
 /// against the member's journal.
 #[test]
 fn a_start_view_landing_on_the_fencing_node_adopts() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // A committed operation so the histories have substance beyond genesis.

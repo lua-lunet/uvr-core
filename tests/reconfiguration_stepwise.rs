@@ -8,33 +8,23 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{current_view, op_id, snap, status_of, three_node_cluster, view};
 use harness::{Harness, StepOutcome, provisioned_id as n};
 use uvrr::configuration::{
     ConfigError, Configuration, INIT_SLOT, SystemOperation, VOID_SLOT, Weight,
 };
 use uvrr::effects::{Effect, Stability};
-use uvrr::ids::{Ballot, Era, NodeId, OperationId, Slot, Tick, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, Tick, View};
 use uvrr::journal::{Journal, JournalView, LogEntry, Payload, SegmentedLog};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
-use uvrr::progress::{ProgressSnapshot, Status};
+use uvrr::progress::Status;
 use uvrr::quorum::{QuorumError, QuorumStrategy, R2Direction, Role};
 use uvrr::replica::{Input, PlanRefusal, Replica, TimedInput, ViewChangeKnobs};
 use uvrr::wire::{Header, Tag};
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
-/// A view in era 1, the era every node here bootstraps into.
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
 
 /// A view in era 2, the era the first committed reconfiguration
 /// establishes.
@@ -43,25 +33,6 @@ fn era2_view(number: u32) -> Ballot {
         era: Era(2),
         view: View(number),
     }
-}
-
-/// The snapshot of a live node (tests never snapshot a crashed one).
-fn snap(h: &Harness, id: NodeId) -> ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
 }
 
 /// The primary of a view under the genesis order 0, 1, 2 (§1.2) while every
@@ -94,17 +65,6 @@ fn current_weights(h: &Harness, id: NodeId) -> Vec<u64> {
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-/// A three-node cluster whose view-change machinery is live.
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
 
 /// Ticks a node until its timeout fires (one tick past the knob),
 /// asserting it fenced into exactly `target`.
@@ -204,7 +164,7 @@ fn genesis_is_law() {
 // ---------------------------------------------------------------------
 #[test]
 fn stop_the_world_reconfigure_advances_the_era() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
 
     // The primary proposes INCREMENT(n2) through the ordinary pipeline,
@@ -295,7 +255,7 @@ fn stop_the_world_reconfigure_advances_the_era() {
 // ---------------------------------------------------------------------
 #[test]
 fn stop_the_world_join_completes_under_a_continuous_stream() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
 
     // The client stream is live before the reconfiguration.
@@ -376,7 +336,7 @@ fn stop_the_world_join_completes_under_a_continuous_stream() {
 // ---------------------------------------------------------------------
 #[test]
 fn era_slot_relation_is_enforced_at_accept() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
 
     // A forged Prepare from the current primary, in the current view, at
@@ -510,7 +470,7 @@ fn primary_crash_mid_reconfiguration_never_half_installs() {
     // Case A: one backup accepted the establishing operation before the
     // crash. The era-1 view change carries it into the new history
     // (§9.3), still uncommitted, the era has NOT advanced...
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
     let outcome = h.reconfigure(n(0), SystemOperation::Increment(n(1)), None);
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -544,7 +504,7 @@ fn primary_crash_mid_reconfiguration_never_half_installs() {
     // history ends at slot 2; the operation is gone, the era never
     // moved, and the slot is reused by the next ordinary proposal (§9.2:
     // the suffix beyond the committed frontier is replaced wholesale).
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
     let outcome = h.reconfigure(n(0), SystemOperation::Increment(n(1)), None);
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -688,7 +648,7 @@ fn unsafe_transition_is_refused_pre_proposal_with_its_witness() {
 // ---------------------------------------------------------------------
 #[test]
 fn precondition_refusals_are_named_and_leave_the_log_untouched() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
 
     // Every refusal leaves the frontier exactly where it was.
@@ -782,7 +742,7 @@ fn precondition_refusals_are_named_and_leave_the_log_untouched() {
 // ---------------------------------------------------------------------
 #[test]
 fn void_and_init_outside_genesis_are_refused() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     h.bootstrap();
     let genesis: Vec<NodeId> = vec![n(0), n(1), n(2)];
 

@@ -107,15 +107,15 @@ what contributed and what did not:
 
 - omega, built into Lean, zero install, routinely used.
 - Aesop, exercised (4/4 propositional theorems solved). Not a dependency
-  of the formalization. Record: `research/lean-solvers-cli-omega-aesop.md`.
+  of the formalization. Record: `study/lean-solvers-cli-omega-aesop.md`.
 - lean-auto / Duper, exercised (2/3 theorems solved, T2 commutativity timed
   out at 500 s). Not a dependency. Record:
-  `research/lean-solvers-cli-lean-auto.md`.
+  `study/lean-solvers-cli-lean-auto.md`.
 - Veil, never tire-kicked: it pins v4.32.0 and pulls Mathlib, and the
   formalization uses plain Lean by design. Record:
-  `research/tool-kick-tires.md`, `research/outcomes-paper.md`.
+  the archived tree at tag dumpster-before-paper-reorg, `study/outcomes-paper.md`.
 - LeanLTL, never exercised beyond checkout: past-time operators remain
-  future work. Record: `research/outcomes-paper.md`.
+  future work. Record: `study/outcomes-paper.md`.
 
-None of these are submodules. Experiment records live under `research/`;
+None of these are submodules. Experiment records live under `study/`;
 do not re-add the tools as submodules.

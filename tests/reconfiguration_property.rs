@@ -25,25 +25,19 @@
 //!    the flat stream op by op land on the same final weights, and each
 //!    era's configuration is what its own ops produce folded step by step.
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::n;
 use std::collections::BTreeMap;
 
 use proptest::prelude::*;
 use proptest::test_runner::Config;
 
 use uvrr::configuration::{Configuration, Member, Snapshot, SystemOperation, Weight};
-use uvrr::ids::{CrashCounter, Era, NodeId, Slot, SystemId};
+use uvrr::ids::{Era, NodeId, Slot};
 use uvrr::quorum::WeightedMajority;
 use uvrr::reconfiguration::EraStep;
-
-/// The three-node identity set every stream speaks about, plus the small
-/// join pool that lets membership grow. The union stays far below
-/// [`uvrr::configuration::MAX_MEMBERS`], so the exhaustive gate's subset scan is microseconds.
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
 
 /// A random in-domain starting configuration: three nodes, each weight
 /// independently in {0, 1, 2}, inflated through the checked constructor so

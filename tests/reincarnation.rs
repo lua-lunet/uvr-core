@@ -32,10 +32,14 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster};
 use harness::{Harness, StepOutcome, mint_pair};
 use uvrr::configuration::{ConfigError, Configuration, INIT_SLOT, SystemOperation, VOID_SLOT};
 use uvrr::effects::Effect;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, Slot, SystemId, View};
 use uvrr::lifecycle::{
     CopyState, Marker, RestartClass, RestartDecision, RestartRefusal, SuperblockCopies,
 };
@@ -46,52 +50,9 @@ use uvrr::quorum::{QuorumStrategy, Role, WeightedMajority};
 use uvrr::replica::{PlanRefusal, forced_steps};
 use uvrr::wire::{Header, Pack, Tag, Unpack, UnpackError};
 
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        uvrr::replica::ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 fn current_era(h: &Harness, id: NodeId) -> Era {
     h.era_table(id).expect("the node is live").current().era
@@ -420,7 +381,7 @@ fn a_doubled_scale_corner_is_the_blog_table_c() {
 /// is what made each proposal legal.
 #[test]
 fn a_unit_ladder_commits_through_the_replica_path() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     let outcome = h.reconfigure(
@@ -449,7 +410,7 @@ fn a_unit_ladder_commits_through_the_replica_path() {
 /// unit step is refused by the closed gate before the log moves (R14).
 #[test]
 fn a_skipped_unit_is_refused_by_the_gate() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     // Leave requires weight 0, so the skip is expressed as its
     // precondition violation instead: departing a member that still votes
@@ -472,7 +433,7 @@ fn a_skipped_unit_is_refused_by_the_gate() {
 /// gone, the new identity at weight 1 in the old succession position.
 #[test]
 fn b_backup_crashed_reincarnates_and_rejoins() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     let bumped = reincarnate_backup(&mut h, Stop::Complete);
     assert_eq!(current_order(&h, n(0)), vec![n(0), n(1), bumped]);
     assert_eq!(current_weights(&h, n(0)), vec![1, 1, 1]);
@@ -501,7 +462,7 @@ fn b_backup_crashed_reincarnates_and_rejoins() {
 /// recorded when it crashed.
 #[test]
 fn b_announcement_carries_past_life_frontiers() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let outcome = h.propose(n(0), op_id(1), b"x");
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -980,7 +941,7 @@ fn d_identity_exhaustion_refuses() {
 /// a live commit.
 #[test]
 fn e_membership_discard() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     reincarnate_backup(&mut h, Stop::Complete);
     // The old identity was evicted (era 3): its messages are foreign.
     let before = h.queued_len();
@@ -1054,7 +1015,7 @@ fn e_membership_discard() {
 /// opened.
 #[test]
 fn f_standby_streams_current_without_fetch_and_cannot_influence() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     let bumped = reincarnate_backup(&mut h, Stop::AfterFirstEra);
     // Instant sync without a round trip: the ack's missed-range push and
     // the memo'd establishing prepare and its commit carried the standby
@@ -1136,7 +1097,7 @@ fn f_standby_streams_current_without_fetch_and_cannot_influence() {
 /// ordinary install. It never voted and stays fenced throughout.
 #[test]
 fn f_boot_fetch_route_acquires_the_admitting_era() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let outcome = h.propose(n(0), op_id(1), b"x");
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -1240,7 +1201,7 @@ fn f_boot_fetch_route_acquires_the_admitting_era() {
 /// standby, alongside the armed machine's first forced step.
 #[test]
 fn b_ack_pushes_missed_range_and_proposes_first_step_in_one_transition() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let outcome = h.propose(n(0), op_id(1), b"x");
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -1419,7 +1380,7 @@ fn g_mutation_negative_controls() {
     ));
 
     // Protocol level: the sender must BE the new identity it names.
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let forged = Message {
         header: Header {
@@ -1680,7 +1641,7 @@ fn forced_steps_recompute_exactly_the_remaining_suffix() {
 /// mis-attributed announcement wedges, with safety held.
 #[test]
 fn h_the_announcement_must_be_attributed_to_the_new_identity() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let outcome = h.propose(n(0), op_id(1), b"x");
     assert!(matches!(outcome, StepOutcome::Published { .. }));

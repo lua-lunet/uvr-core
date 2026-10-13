@@ -14,7 +14,7 @@
 //! script did not declare. The replica's `invariant::legal` (and S3's
 //! indeterminate-persistence rule) does the forcing; the harness makes an
 //! unexpected forcing a loud failure carrying the full step trace. A script
-//! that intends a fault declares [`crate::Harness::expect_fault`] beforehand; the
+//! that intends a fault declares [`crate::conformance::harness::Harness::expect_fault`] beforehand; the
 //! declaration is consumed when the fault is observed. The gate trips on
 //! *transitions*: a fault restored from disk at `restart_with` is evidence
 //! about a prior life, not a new event, and is seeded as known.
@@ -40,11 +40,11 @@
 //!    operation slot (`INIT_SLOT + 1`), and no two nodes applied different
 //!    payloads at the same slot.
 //!
-//! # What is not here
+//! # What is here
 //!
-//! The non-stop-the-world reconfiguration pivot (§8.7.6–§8.7.7) is still
-//! refused with the named [`crate::replica::PlanRefusal::Unsupported`]. Normal operation
-//! is live:
+//! Both reconfiguration paths are live: the stop-the-world path (§8.7.4)
+//! and the non-stop overlap transition (§8.7.6–§8.7.7). So is normal
+//! operation:
 //! [`crate::wire::Tag::Prepare`]/[`crate::wire::Tag::PrepareOk`]/[`crate::wire::Tag::Commit`], the Propose/Apply/Applied boundary
 //! (§11.1), the bootstrap from the fenced [`crate::progress::Status::Joining`] genesis state, view
 //! change, recovery (§6.1), state transfer (§10, §13.1 step 5), the
@@ -427,7 +427,7 @@ pub enum StepOutcome {
     },
     /// An external-stability mode parked the transition behind its
     /// persistence intent; the harness recorded the intent and waits for
-    /// [`crate::Harness::confirm`].
+    /// [`crate::conformance::harness::Harness::confirm`].
     Parked {
         /// The base revision the intent is named by.
         revision: u64,
@@ -484,7 +484,7 @@ pub enum BoundaryEvent {
 /// configuration history that authorises it, the committed journal prefix,
 /// and the harness's own apply record.
 ///
-/// Constructed by [`crate::Harness::check_safety`] from live replicas; also
+/// Constructed by [`crate::conformance::harness::Harness::check_safety`] from live replicas; also
 /// constructible directly, which is how the contract test plants violations
 /// to prove the checker is not vacuous.
 #[derive(Clone, Debug)]
@@ -713,9 +713,9 @@ pub struct Harness {
     /// exactly like the disk.
     gates: Vec<Option<PathBuf>>,
     /// The live node's gate session: the running process's marker store,
-    /// consumed by [`crate::Harness::halt`]. A node still awaiting its deferred
+    /// consumed by [`crate::conformance::harness::Harness::halt`]. A node still awaiting its deferred
     /// latch (a reincarnation not yet seated) holds `None` here and its
-    /// session in [`crate::Harness::pending`] instead.
+    /// session in [`crate::conformance::harness::Harness::pending`] instead.
     sessions: Vec<Option<Running<TmpGate>>>,
     /// The retained operation log of each index's most recent gate,
     /// survives the session that wrote it, so a halt's schedule stays
@@ -742,13 +742,13 @@ impl Harness {
     ///
     /// View-change knobs: suspicion disabled, unbounded suffix, the
     /// normal-operation suites never time out. View-change scripts use
-    /// [`crate::Harness::with_knobs`].
+    /// [`crate::conformance::harness::Harness::with_knobs`].
     #[must_use]
     pub fn provision(n: usize) -> Harness {
         Self::with_stability(n, Stability::Volatile)
     }
 
-    /// [`crate::Harness::provision`] with explicit view-change knobs: the
+    /// [`crate::conformance::harness::Harness::provision`] with explicit view-change knobs: the
     /// timeout and the §13.1 suffix budget are host policy (W5), and a
     /// script that tests them sets them, never inherits them.
     #[must_use]
@@ -756,16 +756,16 @@ impl Harness {
         Self::assemble(n, Stability::Volatile, knobs, None, &[])
     }
 
-    /// [`crate::Harness::provision`] with an explicit stability level. In every
+    /// [`crate::conformance::harness::Harness::provision`] with an explicit stability level. In every
     /// non-volatile mode the harness records each [`crate::effects::Effect::Persist`] intent and the
-    /// script must confirm it explicitly with [`crate::Harness::confirm`], the
+    /// script must confirm it explicitly with [`crate::conformance::harness::Harness::confirm`], the
     /// real host contract, mirrored.
     #[must_use]
     pub fn with_stability(n: usize, stability: Stability) -> Harness {
         Self::assemble(n, stability, Harness::no_view_change_knobs(), None, &[])
     }
 
-    /// [`crate::Harness::provision`] with an explicit journal tail capacity. Slab
+    /// [`crate::conformance::harness::Harness::provision`] with an explicit journal tail capacity. Slab
     /// boundaries decide what checkpoint-authorized reclamation can drop
     /// (whole slabs only, §4), so a reclamation script pins the capacity
     /// rather than inheriting the default journal's.
@@ -780,7 +780,7 @@ impl Harness {
         )
     }
 
-    /// [`crate::Harness::with_journal_capacity`] with explicit view-change knobs:
+    /// [`crate::conformance::harness::Harness::with_journal_capacity`] with explicit view-change knobs:
     /// a reclamation script that also drives view changes needs both,
     /// slab boundaries decide what reclamation can drop, the timeout
     /// decides when suspicion fires.
@@ -793,7 +793,7 @@ impl Harness {
         Self::assemble(n, Stability::Volatile, knobs, Some(tail_capacity), &[])
     }
 
-    /// [`crate::Harness::with_stability`] with an explicit journal tail capacity:
+    /// [`crate::conformance::harness::Harness::with_stability`] with an explicit journal tail capacity:
     /// a shortfall script under an external-stability mode needs both,
     /// the stability level parks every transition behind its persistence
     /// intent (S2), and the pinned slab boundaries decide what
@@ -813,7 +813,7 @@ impl Harness {
         )
     }
 
-    /// [`crate::Harness::with_knobs`] with a statically registered gossip-witness
+    /// [`crate::conformance::harness::Harness::with_knobs`] with a statically registered gossip-witness
     /// list (`docs/uvrr-protocols.md`, the rejoin chapter §4): every
     /// provisioned node loads `witnesses` at startup. The witnesses
     /// themselves are outside the roster, they are not provisioned here;
@@ -1592,7 +1592,7 @@ impl Harness {
         self.record(format!("n={} halt (drained, markers flushed)", id.0));
     }
 
-    /// Crashes a node like [`crate::Harness::crash`], but the recorded disk's
+    /// Crashes a node like [`crate::conformance::harness::Harness::crash`], but the recorded disk's
     /// journal physically retains only slots from `base` onward: a host
     /// retention policy (S1) let the earlier prefix go while the logical
     /// frontier stands. This is how a script stages a retained-base
@@ -1640,7 +1640,7 @@ impl Harness {
     /// not trip the gate.
     ///
     /// The restart routes through the boot gate: the markers must classify
-    /// `Clean`, a stopped quorum from a [`crate::Harness::halt`]. A crashed
+    /// `Clean`, a stopped quorum from a [`crate::conformance::harness::Harness::halt`]. A crashed
     /// marker set refuses loudly (error-on-crashed is the contract,
     /// `docs/uvrr-io-obligations.md`, the boot-gate chapter §7): the same identity cannot resume a
     /// crash.
@@ -2306,7 +2306,7 @@ fn clone_journal(journal: &SegmentedLog, tail_capacity: Option<usize>) -> Segmen
 }
 
 /// The cluster's journal construction: the default log, or one with the
-/// script-pinned tail capacity (see [`crate::Harness::with_journal_capacity`]).
+/// script-pinned tail capacity (see [`crate::conformance::harness::Harness::with_journal_capacity`]).
 fn make_journal(tail_capacity: Option<usize>) -> SegmentedLog {
     match tail_capacity {
         Some(capacity) => SegmentedLog::with_tail_capacity(capacity),

@@ -44,17 +44,6 @@ name = "maelstrom-lin-kv"
 path = "src/bin/maelstrom-lin-kv/main.rs"
 required-features = ["maelstrom"]
 
-# The conformance host. A binary, not a second crate: it needs the library
-# and nothing needs it, and its dependencies are the optional
-# `conformance_host` feature's (serde for the corpus reader), so a
-# default-features consumer never builds it. It serves the committed
-# compliance corpus over loopback HTTP, which the Hurl suite in `tests/
-# hurl/` drives (`docs/uvrr-host-compliance.md` §8).
-[[bin]]
-name = "uvrr-conformance"
-path = "src/bin/uvrr-conformance/main.rs"
-required-features = ["conformance_host"]
-
 # The reconfiguration solver as the administrator's offline tool: given a
 # current and a target configuration file, it prints the legal operation
 # path as a per-slot plan (era and view each slot establishes, riders
@@ -87,16 +76,21 @@ required-features = ["uvrr"]
 [dependencies]
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
+# The datagram encryption codec the demo's real socket transport seals and
+# opens with. Pinned by revision, never by branch or moving tag, so every
+# build of this manifest is the same codec. `default-features = false` keeps
+# paxe-core's C ABI (the LuaJIT host's `lunet_paxe_*` surface) out of this
+# crate's link; what a Rust host uses is its modules. paxe-core carries no
+# crate dependency of its own and links libsodium statically, so the entry
+# adds no transitive crate to anyone's dependency graph: the only
+# non-optional thing it asks of a build machine is a libsodium archive.
+paxe-core = { git = "https://github.com/lua-lunet/paxe-core.git", rev = "a92242e5a87e3bcbc47331390ff47886ac765e34", default-features = false, optional = true }
 
 # `serde` buys derives on the wire types only. It never becomes the wire format:
 # the binary codec in `wire` is normative so the spec §13.1 suffix budget stays
 # deterministic (decision P3). `maelstrom` adds the JSON debug bridge and the
 # Maelstrom node binary. The `serde` lane also carries the plan codec: the
 # JSONL plan artefact the leader's admin ingress accepts.
-# `conformance_host` adds nothing but the corpus reader: the conformance host
-# that serves the compliance corpus over HTTP (`docs/uvrr-host-compliance.md`
-# §8) is a dev tool built on the corpus reader, so the feature names that
-# reader and no crate.
 [features]
 # Gates examples/uvrr-reincarnation only; no dependencies behind it.
 uvrr = []
@@ -108,7 +102,12 @@ trace = []
 default = []
 serde = ["dep:serde", "dep:serde_json"]
 maelstrom = ["serde", "dep:serde_json"]
-conformance_host = ["serde"]
+# The locks demo (`src/demo/`): the advisory locks over uVRR with the least
+# environment. It rides the `serde` lane for the lock table's application
+# payload codec, and the `paxe-core` lane for the real socket transport in
+# `src/demo/paxe_transport.rs`, the one place this crate opens a socket or
+# links cryptography. Nothing else in the crate does.
+demo-locks = ["serde", "dep:paxe-core"]
 
 # Build-time tooling for `cargo test`, not a consumer's supply chain: nothing here
 # reaches a crate that depends on `uvrr-core`, and the [dependencies] gate above is

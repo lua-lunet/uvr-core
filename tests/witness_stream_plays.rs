@@ -15,21 +15,14 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of};
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The timeout knob for the view-change scripts (S4).
 const TIMEOUT: u64 = 3;
@@ -39,28 +32,6 @@ fn knobs() -> uvrr::replica::ViewChangeKnobs {
         primary_timeout: TIMEOUT,
         view_change_budget: usize::MAX,
     }
-}
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
 }
 
 fn current_era(h: &Harness, id: NodeId) -> Era {

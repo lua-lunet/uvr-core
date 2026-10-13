@@ -28,46 +28,17 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, status_of, three_node_cluster};
 use harness::{Harness, StepOutcome};
-use uvrr::ids::{CrashCounter, NodeId, OperationId, SystemId};
+use uvrr::ids::{CrashCounter, NodeId};
 use uvrr::lifecycle::{CopyState, Marker, RestartClass, SuperblockCopies};
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn status_of(h: &Harness, id: NodeId) -> uvrr::progress::Status {
-    uvrr::progress::Status::from_word(snap(h, id).status).expect("the word is a status")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> uvrr::ids::Ballot {
-    let snapshot = snap(h, id);
-    uvrr::ids::Ballot {
-        era: uvrr::ids::Era(snapshot.era),
-        view: uvrr::ids::View(snapshot.view),
-    }
-}
 
 fn current_era(h: &Harness, id: NodeId) -> uvrr::ids::Era {
     h.era_table(id).expect("the node is live").current().era
@@ -221,21 +192,11 @@ fn a_the_identity_marker_cohort_matrix_is_exhaustive() {
 // B. The fixed write schedules
 // ---------------------------------------------------------------------------
 
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        uvrr::replica::ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
 /// The first life's anchor: one read, one [`uvrr::progress::Status::Joining`] round, durable
 /// before the node answers anything, so a later crash reads as a crash.
 #[test]
 fn b_the_first_life_latches_its_anchor_once() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     assert_eq!(
         h.gate_ops(n(0)),
@@ -249,7 +210,7 @@ fn b_the_first_life_latches_its_anchor_once() {
 /// vouches for exactly it.
 #[test]
 fn b_the_controlled_halt_is_two_rounds_with_the_drain_between() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.halt(n(0));
     assert_eq!(
@@ -282,7 +243,7 @@ fn b_the_controlled_halt_is_two_rounds_with_the_drain_between() {
 /// seated the new identity.
 #[test]
 fn c_the_reincarnations_latch_defers_to_the_seated_witness() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.crash(n(2));
     let bumped = n(2)
@@ -338,7 +299,7 @@ fn c_the_reincarnations_latch_defers_to_the_seated_witness() {
 #[test]
 #[should_panic(expected = "error-on-crashed is the contract")]
 fn d_a_crashed_identity_cannot_resume() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     let outcome = h.propose(n(0), op_id(1), b"x");
     assert!(matches!(outcome, StepOutcome::Published { .. }));
@@ -360,7 +321,7 @@ fn d_a_crashed_identity_cannot_resume() {
 /// identity, never a double bump.
 #[test]
 fn e_a_recrash_between_decision_and_latch_replays_the_same_pair() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     h.crash(n(2));
     let bumped = n(2)

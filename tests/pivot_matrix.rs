@@ -16,51 +16,20 @@
 
 mod harness;
 
-use harness::{Harness, StepOutcome};
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, n, three_node_cluster};
+use harness::StepOutcome;
 use uvrr::configuration::{Configuration, SystemOperation};
 use uvrr::effects::Stability;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, SystemId, View};
+use uvrr::ids::NodeId;
 use uvrr::journal::{Journal, SegmentedLog};
 use uvrr::quorum::{QuorumStrategy, Role, WeightedMajority};
 use uvrr::replica::{Input, Pivot, PlanRefusal, Replica, ViewChangeKnobs};
 
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-/// A view in era 1, the era every node here bootstraps into.
-#[allow(dead_code)]
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
-
 /// The timeout knob for the view-change scripts.
 const TIMEOUT: u64 = 3;
-
-/// A three-node cluster whose view-change machinery is live.
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-/// Bootstraps the cluster: the genesis primary promotes itself and both
-/// backups adopt view (1, 0) from the promotion's [`uvrr::wire::Tag::Commit`] announcement.
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
 
 // ---------------------------------------------------------------------
 // Construction: the W/X/Y/Z membership sequence from §8.7.6
@@ -430,7 +399,7 @@ fn valid_pivot_does_not_bypass_transition_gate() {
 
 #[test]
 fn plan_reconfigure_accepts_valid_pivot() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // A legal reconfiguration with a valid pivot: Increment(n1) takes the

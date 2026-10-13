@@ -7,8 +7,8 @@
 //! print `unreachable` and exit non-zero: `None` is a proof, not an error.
 //!
 //! File format, one record per line:
-//!   era <u32> view <u32>      the deployment's running era and view
-//!   node <u32> <u32>          a member and its weight, in succession order
+//!   era `u32` view `u32`      the deployment's running era and view
+//!   node `u32` `u32`          a member and its weight, in succession order
 //!
 //! The solver is the library's own: this binary is the administrator's
 //! offline handle on exactly the code the cluster runs.

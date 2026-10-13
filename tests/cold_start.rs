@@ -58,9 +58,13 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{current_view, n, op_id, snap, status_of};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{INIT_SLOT, SystemOperation};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::lifecycle::{CopyState, Marker, RestartDecision, SuperblockCopies};
 use uvrr::message::{Body, Message};
 use uvrr::observe::Diagnostic;
@@ -75,17 +79,6 @@ const TIMEOUT: u64 = 3;
 /// windows per phase, so a phase that fires nothing fires nothing over a
 /// span no reading of the knob could mistake for one.
 const WINDOWS: u64 = 3;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
 
 /// A two-node weight-(1,1) cluster whose view-change machinery is live.
 fn cluster() -> Harness {
@@ -108,22 +101,6 @@ fn bootstrap(h: &mut Harness) {
         assert_eq!(status_of(h, id), Status::Normal, "{id:?} is Normal");
     }
     h.assert_safety();
-}
-
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
-
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
 }
 
 fn current_era(h: &Harness, id: NodeId) -> Era {

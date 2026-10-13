@@ -8,35 +8,18 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, op_id, snap, status_of, three_node_cluster, view};
 use harness::{DeliveryOutcome, Harness, StepOutcome};
 use uvrr::configuration::SystemOperation;
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, OperationId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 
 use uvrr::message::{Body, Message};
 use uvrr::progress::Status;
-use uvrr::replica::{Pivot, PlanRefusal, ViewChangeKnobs};
+use uvrr::replica::{Pivot, PlanRefusal};
 use uvrr::wire::Tag;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
-
-/// An operation identity for the scripts: the host assigns it, the core
-/// carries it opaque (§11.1, B2).
-fn op_id(lsb: u64) -> OperationId {
-    OperationId { msb: 0, lsb }
-}
-
-/// A view in era 1, the era every node here bootstraps into.
-fn view(number: u32) -> Ballot {
-    Ballot {
-        era: Era(1),
-        view: View(number),
-    }
-}
 
 /// A view in era 2, the era the committed reconfiguration establishes.
 fn era2_view(number: u32) -> Ballot {
@@ -67,45 +50,6 @@ fn transition_view() -> Ballot {
 /// The timeout knob for the view-change scripts: a node suspects its
 /// primary after more than three ticks of silence (S4).
 const TIMEOUT: u64 = 3;
-
-/// A three-node cluster whose view-change machinery is live.
-fn cluster() -> Harness {
-    Harness::with_knobs(
-        3,
-        ViewChangeKnobs {
-            primary_timeout: TIMEOUT,
-            view_change_budget: usize::MAX,
-        },
-    )
-}
-
-/// Bootstraps the cluster: the genesis primary promotes itself and both
-/// backups adopt view (1, 0) from the promotion's [`uvrr::wire::Tag::Commit`] announcement
-/// (§13.3).
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-/// The snapshot of a live node (tests never snapshot a crashed one).
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
-}
 
 /// The newest era the node's committed configuration history has
 /// established (§8.7.1).
@@ -161,7 +105,7 @@ fn establish(h: &mut Harness) -> DeliveryOutcome {
 
 #[test]
 fn overlap_transition_runs_the_seven_steps_without_stopping_the_stream() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // Step 1: the establishing proposal goes to `qII − {L}` and nowhere
@@ -404,7 +348,7 @@ fn overlap_transition_runs_the_seven_steps_without_stopping_the_stream() {
 
 #[test]
 fn solicitation_duplicate_and_evidence_duplicate_are_idempotent() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     establish(&mut h);
 
@@ -453,7 +397,7 @@ fn solicitation_duplicate_and_evidence_duplicate_are_idempotent() {
 
 #[test]
 fn reordered_start_view_is_retained_and_installed_by_the_tick_redrive() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     establish(&mut h);
 
@@ -497,7 +441,7 @@ fn reordered_start_view_is_retained_and_installed_by_the_tick_redrive() {
 
 #[test]
 fn leader_serves_the_fetch_across_its_own_switch() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
     establish(&mut h);
 
@@ -529,7 +473,7 @@ fn leader_serves_the_fetch_across_its_own_switch() {
 
 #[test]
 fn transition_view_exhaustion_refuses_the_proposal_before_the_log() {
-    let mut h = cluster();
+    let mut h = three_node_cluster(TIMEOUT);
     bootstrap(&mut h);
 
     // Establish era 2 with weights [2, 1, 1], the shape that keeps a

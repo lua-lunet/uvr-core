@@ -10,21 +10,18 @@
 
 mod harness;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::{bootstrap, current_view, n, snap, status_of};
 use harness::{Harness, StepOutcome};
 use uvrr::configuration::{EraTable, SystemOperation};
-use uvrr::ids::{Ballot, CrashCounter, Era, NodeId, Slot, SystemId, View};
+use uvrr::ids::{Ballot, Era, NodeId, Slot, View};
 use uvrr::observe::Diagnostic;
 use uvrr::progress::Status;
 use uvrr::quorum::{WeightedMajority, construct_pivot};
 use uvrr::replica::ViewChangeKnobs;
 use uvrr::wire::Tag;
-
-fn n(id: u32) -> NodeId {
-    NodeId::new(
-        SystemId::new((id + 1) as u16).expect("test system ids are small and non-zero"),
-        CrashCounter::new(1).expect("one is non-zero"),
-    )
-}
 
 /// A view in era 2, the era the standby-bearing `DECREMENT` establishes.
 fn era2_view(number: u32) -> Ballot {
@@ -55,34 +52,6 @@ fn cluster() -> Harness {
             view_change_budget: usize::MAX,
         },
     )
-}
-
-/// Bootstraps the cluster: the genesis primary promotes itself and every
-/// backup adopts view (1, 0) from the promotion's [`uvrr::wire::Tag::Commit`] announcement
-/// (§13.3).
-fn bootstrap(h: &mut Harness) {
-    h.tick_all();
-    h.deliver_all();
-    h.assert_safety();
-}
-
-/// The snapshot of a live node (tests never snapshot a crashed one).
-fn snap(h: &Harness, id: NodeId) -> uvrr::progress::ProgressSnapshot {
-    h.snapshot(id).expect("the node is live")
-}
-
-/// The node's current view as a [`uvrr::ids::Ballot`].
-fn current_view(h: &Harness, id: NodeId) -> Ballot {
-    let snapshot = snap(h, id);
-    Ballot {
-        era: Era(snapshot.era),
-        view: View(snapshot.view),
-    }
-}
-
-/// The node's status, decoded from the observation word.
-fn status_of(h: &Harness, id: NodeId) -> Status {
-    Status::from_word(snap(h, id).status).expect("the word is a status")
 }
 
 /// The newest era the node's committed configuration history has

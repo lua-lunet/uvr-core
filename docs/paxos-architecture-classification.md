@@ -27,4 +27,4 @@ invariants rather than assigned a safety property solely from this table.
 This is a faithful reading of section II-B and figure 2 of Ailidani, Charapko,
 Demirbas, and Kosar, *WPaxos: Wide Area Network Flexible Consensus*, arXiv
 1703.08905v4 (2019). The local single-column reading text is kept at
-`research/literature/wpaxos/1703.08905v4-readaloud.md`.
+`study/wpaxos/1703.08905v4-readaloud.md`.
