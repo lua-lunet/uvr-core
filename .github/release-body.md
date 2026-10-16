@@ -11,8 +11,8 @@ surface now, not a demo.
   truthful release (one that retires nothing says so), the
   nil-unrepresentable `ClientId`, and the clock-parametric `execute`.
   The expiry window is the ephemeral lease of the fast-reads design
-  (Liskov and Cowling, *Viewstamped Replication Revisited*, 2012,
-  §6.3 "Fast Reads", §6.3.1 "Reads at the Primary"): the primary
+  ([VR-2012] §6.3/§6.3.1,
+  docs/references.md): the primary
   answers reads unilaterally only while it holds valid leases from f
   other replicas, and a new view starts only after the leases at f + 1
   participants expire. The lease arithmetic the cluster owner owns —

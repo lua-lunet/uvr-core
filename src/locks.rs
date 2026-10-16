@@ -25,8 +25,8 @@
 //! access lives behind [`StateStore`] and [`BootFence`] at the host.
 //!
 //! The expiry window is the ephemeral lease of the fast-reads design
-//! (Liskov and Cowling, *Viewstamped Replication Revisited*, 2012, §6.3
-//! "Fast Reads", §6.3.1 "Reads at the Primary"): the primary processes
+//! ([VR-2012] §6.3/§6.3.1, "Fast
+//! Reads" and "Reads at the Primary", `docs/references.md`): the primary processes
 //! reads unilaterally only while it holds valid leases from f other
 //! replicas, and a new view starts only after the leases at f + 1
 //! participants in the view-change protocol expire, which ensures the
@@ -153,8 +153,8 @@ where
 /// the lock's state without diffing successive replies.
 ///
 /// The record's `expiry` is an ephemeral lease on the replicated clock:
-/// the fast-reads arithmetic of the module's documentation (Liskov and
-/// Cowling, 2012, §6.3.1) is the owner's to settle before the timeouts
+/// the fast-reads arithmetic of the module's documentation ([VR-2012]
+/// §6.3.1, `docs/references.md`) is the owner's to settle before the timeouts
 /// are chosen — the leader lease outlasting the reader lease plus the
 /// clock drift margin, the quorum view-change rounds as a safety margin
 /// beyond the expiry, no renewal while the cluster is idle, and the
