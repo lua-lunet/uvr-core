@@ -54,7 +54,10 @@ mod readme_doctests {
 pub mod backoff;
 pub mod configuration;
 pub mod conformance;
-#[cfg(feature = "demo-locks")]
+#[cfg(feature = "locks")]
+pub mod locks;
+
+#[cfg(feature = "demo")]
 pub mod demo;
 pub mod effects;
 pub mod ids;

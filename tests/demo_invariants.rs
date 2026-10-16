@@ -6,7 +6,7 @@
 //! (propose an operation, read the applied reply), and asserts the stated
 //! behaviour. Nothing here reaches into private state.
 
-#![cfg(feature = "demo-locks")]
+#![cfg(feature = "demo")]
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, VecDeque};

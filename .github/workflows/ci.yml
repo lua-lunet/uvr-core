@@ -97,7 +97,7 @@ jobs:
             fi
           fi
       # The demo's real socket transport links the paxe datagram codec
-      # behind the `demo-locks` feature, and the codec links libsodium
+      # behind the `demo` feature, and the codec links libsodium
       # statically. The codec requires a libsodium with the hardware
       # AES-256-GCM path and refuses to run without one, so the build machine
       # must have one: Ubuntu 24.04 and Debian trixie on arm64 ship 1.0.18,
@@ -235,5 +235,6 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: .github/release-body.md
           generate_release_notes: true
           files: uvrr-compliance-${{ github.ref_name }}.zip

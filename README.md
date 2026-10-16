@@ -97,7 +97,7 @@ cargo test --features maelstrom
 
 ### The locks demo lane
 
-The `demo-locks` feature carries the advisory-locks scaffold and its real
+The `locks` feature carries the advisory-locks machinery at the core surface, and the `demo` feature carries the scaffold and its real
 socket transport, which seals every datagram with the
 [PAXE](https://github.com/lua-lunet/paxe-core) codec. The codec links libsodium statically and requires a build of it with
 the hardware AES-256-GCM path; without one it refuses to run, by design,

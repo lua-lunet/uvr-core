@@ -8,7 +8,7 @@
 //! observation returns the same lease bytes from every node. The seams
 //! are proved beside it, each through its own public surface.
 
-#![cfg(feature = "demo-locks")]
+#![cfg(feature = "demo")]
 
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet, VecDeque};
