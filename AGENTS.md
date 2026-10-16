@@ -104,10 +104,14 @@ You MUST use the skill gh-actions-poll if it is installed. You are FOBRIDDEN fro
 - Logging, tracing, and diagnostics are first-class and are added with the code, not
   after it. A refusal that cannot show an operator why is a refusal nobody can act on.
 - The pre-push hook runs the verification gate before anything reaches the
-  remote: activate once with `git config core.hooksPath .githooks`, and a push
-  that has not passed fmt, clippy, both test lanes, the doc tests, the
-  documentation build and the record checks aborts. `--no-verify` bypasses it
-  and is a deliberate act.
+  remote, and the lane follows what is being pushed: activate once with
+  `git config core.hooksPath .githooks`. A branch push runs the fast lane —
+  fmt, the default-feature clippy and test lanes, the record checks, about a
+  minute on a warm tree. A tag push (a release) runs the full gate — fmt,
+  clippy under all features, both test lanes, the doc tests, the
+  documentation build, the Lean proofs, the record checks. A deletion
+  pushes no tree and verifies nothing. `--no-verify` bypasses the lane and
+  is a deliberate act.
 - Warnings are errors everywhere: a proof that passes with a compile warning
   is no proof. The hook and the CI lanes export
   `RUSTFLAGS="-D warnings"` and `RUSTDOCFLAGS="-D warnings"`, so every lane
