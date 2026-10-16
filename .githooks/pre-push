@@ -1,9 +1,22 @@
 #!/usr/bin/env sh
-# The pre-push verification gate. The push is the unit of publication, so the
-# gate the CI lanes run runs here first: a push that has not passed it is not
-# a push, and the hook aborts it. Activate once with `make hooks` (or
+# The pre-push verification gate, two lanes. The push is the unit of
+# publication, so a gate runs before anything reaches the remote — but the
+# lane follows what is being pushed. Activate once with `make hooks` (or
 # `git config core.hooksPath .githooks`). Bypassing with --no-verify is a
 # deliberate act reserved for the user's hand.
+#
+# The FAST lane, a branch push: the deterministic checks only — fmt, the
+# default-feature clippy and test lanes, the record checks. It completes in
+# about a minute on a warm tree. The full correctness suite — the
+# all-features maelstrom run, the doc gates, the Lean build — is the
+# RELEASE lane's work, and the remote CI runs it on every branch anyway, so
+# a branch push pays the fast lane locally and the full lane in CI.
+#
+# The RELEASE lane, a tag push: the full gate, exactly as the CI lanes run
+# it. A release is the one push that must be verified end to end before it
+# publishes.
+#
+# A DELETION, a zero sha, pushes no tree and verifies nothing.
 set -eu
 
 # A proof that passes with a compile warning is no proof. Every lane below
@@ -13,9 +26,67 @@ set -eu
 export RUSTFLAGS="-D warnings"
 export RUSTDOCFLAGS="-D warnings"
 
-echo "pre-push: the verification gate runs before anything reaches the remote"
+# The hook's stdin is one line per pushed ref:
+#   <local-ref> <local-sha> <remote-ref> <remote-sha>
+# The lane is the strongest one the push names: a tag makes the whole push
+# the release lane, a branch alone is the fast lane, and a deletion alone
+# is nothing at all.
+lane=none
+while read -r local_ref local_sha remote_ref remote_sha; do
+	# A deletion pushes no tree: there is nothing to verify.
+	if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+		continue
+	fi
+	case "$remote_ref" in
+	refs/tags/*)
+		lane=release
+		;;
+	refs/heads/*)
+		if [ "$lane" != "release" ]; then
+			lane=fast
+		fi
+		;;
+	esac
+done
+
+if [ "$lane" = "none" ]; then
+	echo "pre-push: a deletion pushes no tree, nothing to verify"
+	exit 0
+fi
+
+echo "pre-push: the $lane lane runs before anything reaches the remote"
 
 cargo fmt --check
+
+# The record checks, exactly as the CI lanes run them: each must find nothing.
+# They run in every lane: a banned name or a stray work-list number is as
+# wrong on a branch push as on a release.
+if rg -n '#\[cfg\(test\)\]|mod tests' src; then
+	echo "pre-push: inline test modules found under src" >&2
+	exit 1
+fi
+if rg -in 'paxos' src/ tests/; then
+	echo "pre-push: the banned name found in src or tests" >&2
+	exit 1
+fi
+if git ls-files | rg -v '^maelstrom|^study/|^formal/|\.github/' | xargs rg -n 'item[0-9]'; then
+	echo "pre-push: scratch-work numbering found in the product tree" >&2
+	exit 1
+fi < /dev/null
+
+if [ "$lane" = "fast" ]; then
+	# The fast lane: the deterministic checks. The default-feature run
+	# never boots the maelstrom harness, because the library, not the
+	# harness, is the deliverable; the feature-gated targets still
+	# compile, so a gated module that rots fails here too.
+	cargo clippy --all-targets -- -D warnings
+	cargo test --lib --bins --tests
+	cargo check --all-targets --features demo
+	echo "pre-push: the gate is green, the push proceeds"
+	exit 0
+fi
+
+# The release lane: the full gate.
 cargo clippy --all-targets --all-features -- -D warnings
 
 # The fast lane: the default-feature run never boots the maelstrom harness,
@@ -23,10 +94,10 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --lib --bins --tests
 
 # The full-feature lane: the real maelstrom binary end to end and every
-# feature-gated target the matrix admits, the gate a push must
-# have passed locally. The compliance corpus is feature-gated with it, so
-# this lane is also the sync gate: a changed reference means regenerate
-# the corpus (`make corpus-export`) and commit it, or this hook fails the
+# feature-gated target the matrix admits, the gate a release must have
+# passed locally. The compliance corpus is feature-gated with it, so this
+# lane is also the sync gate: a changed reference means regenerate the
+# corpus (`make corpus-export`) and commit it, or this hook fails the
 # push, and `--no-verify` remains the deliberate bypass.
 cargo test --all-features --lib --bins --tests
 
@@ -48,19 +119,5 @@ cargo doc --no-deps --all-features
 # checkout it just made. The gate would abort every push for a defect in
 # nothing. The same build passes in an ordinary shell, which is the tell.
 (cd formal/uvrr-lean && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE lake build)
-
-# The record checks, exactly as the CI lanes run them: each must find nothing.
-if rg -n '#\[cfg\(test\)\]|mod tests' src; then
-	echo "pre-push: inline test modules found under src" >&2
-	exit 1
-fi
-if rg -in 'paxos' src/ tests/; then
-	echo "pre-push: the banned name found in src or tests" >&2
-	exit 1
-fi
-if git ls-files | rg -v '^maelstrom|^study/|^formal/|\.github/' | xargs rg -n 'item[0-9]'; then
-	echo "pre-push: scratch-work numbering found in the product tree" >&2
-	exit 1
-fi < /dev/null
 
 echo "pre-push: the gate is green, the push proceeds"
