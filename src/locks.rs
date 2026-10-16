@@ -1,41 +1,75 @@
-//! The CAS lock table: the demo's whole application.
+//! The advisory locks machinery: the CAS lock table, and the seams it is
+//! written against.
 //!
-//! One table, keyed by lock id, holds the lease records. A [`Request`]
-//! arrives as the opaque payload of a committed operation; [`Service`]
-//! executes it against the table and answers with a [`Response`]. The
-//! table is the only state the lock service keeps, so its serialisable
-//! view ([`StateSnapshot`]) is its state, the payload the state seam
-//! flushes and loads.
+//! This module is the lock service a consumer mounts. What it carries:
 //!
-//! The grant rule is CAS: a lock is granted when no live lease stands or
-//! the live lease already belongs to the requesting client, and the
-//! requested window is positive. The client names a window and can never
-//! name an absolute expiry; the executing node stamps
-//! `expiry = clock + window` on the demo's replicated clock, so no client
-//! clock enters the lease's semantics. The replicated clock is the slot
-//! the operation applies at: the demo has no timers, and the log's own
-//! progress is the one clock every replica already agrees on, which is
-//! what makes a rebuilt table bit-identical to the survivors'.
+//! - the CAS lock table itself: hold, renew, release, break, over one
+//!   client table ([`Service`]), with the generation watermark that never
+//!   hands a generation out twice, the truthful release, the
+//!   nil-unrepresentable [`ClientId`], and the clock-parametric
+//!   [`Service::execute`];
+//! - the persistence contract ([`StateStore`]) and the boot fence
+//!   ([`BootFence`], with its [`FenceWord`]): the seams an industrial host
+//!   implements over its own storage engine and mounts in place of the
+//!   demo's files, changing nothing above them;
+//! - the commit trigger ([`CommitHook`]): the seam a host mounts for
+//!   amortised maintenance and logging;
+//! - [`lazy_load`]: the state seam's half of the flush-eager load-lazy
+//!   law, with its guard stated once.
 //!
-//! A release names the holder and the lease id, so it is a compare-and-swap
-//! on (lock id, generation, holder) and a stale release can never retire a
-//! newer lease. A release that retires nothing reports that it retired
-//! nothing: with no live record standing there is nothing to compare
-//! against, so the swap does not apply, and the reply says so. It is an
-//! idempotent no-op, never a refusal and never an error.
+//! The machinery is pure: no file, no socket, no clock read, no timer.
+//! The lease clock is the replicated log's own progress, the slot the
+//! operation applies at, the one clock every replica already agrees on.
+//! The bytes in and out of [`Service::execute`] are the payload codec's
+//! (`serde_json`, the `serde` lane this module rides); every byte of disk
+//! access lives behind [`StateStore`] and [`BootFence`] at the host.
 //!
-//! The generation belongs to the lock, not to the record standing for it: a
-//! release removes the record, and the lock's generation watermark outlives
-//! it, so no generation is ever handed out twice on the same lock. The
-//! watermark is part of the table's state and rides the snapshot, so a
-//! reloaded or rebuilt table is exactly as monotone as the one it resumes.
+//! The expiry window is the ephemeral lease of the fast-reads design
+//! (Liskov and Cowling, *Viewstamped Replication Revisited*, 2012, §6.3
+//! "Fast Reads", §6.3.1 "Reads at the Primary"): the primary processes
+//! reads unilaterally only while it holds valid leases from f other
+//! replicas, and a new view starts only after the leases at f + 1
+//! participants in the view-change protocol expire, which ensures the
+//! new view starts after the old primary has stopped replying to read
+//! requests, assuming clock rates are loosely synchronised. This table
+//! carries that lease core under another name: a lock's expiry window
+//! is an ephemeral lease taken on the replicated clock, and the
+//! leader's fast-read lease is one application of the same arithmetic.
 //!
-//! The break is the unconditional force-release: whatever record stands is
-//! replaced by the bumped, cleared keeper record, and the bump spends a
-//! generation, so a break costs the next holder exactly what a release
-//! costs.
+//! The arithmetic is the cluster owner's, stated here once so it is
+//! read before the timeouts are chosen:
+//!
+//! - the leader lease must outlast the reader lease plus the clock
+//!   drift safety margin: an old primary that answers reads must hold
+//!   its lease only while the new view cannot yet have started;
+//! - for stale data to be served at all, the isolated old leader must
+//!   still be answering while a new leader is elected AND makes
+//!   progress: the `StartViewChange` and `DoViewChange` exchanges are
+//!   quorum message rounds, and the rounds themselves are a safety
+//!   margin beyond the lease expiry;
+//! - a leader lease is not renewed while the cluster is idle with no
+//!   reads: renewal rides traffic, and an idle cluster is not churned;
+//! - a lease is therefore correct only under a stated set of timeouts
+//!   with a stated clock drift, and both belong to the configuration,
+//!   never to this table.
+//!
+//! The residual hazard is a dirty read during a leader crash: a
+//! writer with one outstanding request, reading its own write over
+//! the internet, may very rarely read stale because the lease was
+//! fractionally too long. That hazard is indistinguishable from two
+//! racing clients whose race merely appears reordered — the write did
+//! happen first in the cluster, and the read missed it — so whether it
+//! is noise or an outage is almost entirely the application's call:
+//! whether the leases are set correctly, and whether a stale read is
+//! catastrophic, are the application's questions, answered before the
+//! timeouts are chosen.
+//!
+//! The demo (`demo` feature) carries this module's scaffold: the
+//! plain-file store and fence over the demo's own disk seam, the
+//! single-threaded node loop, the resend ledger, and the sealed transport.
 
 use std::collections::BTreeMap;
+use std::io;
 
 use serde::de::{Deserializer, Error as _};
 use serde::{Deserialize, Serialize};
@@ -50,7 +84,7 @@ use serde::{Deserialize, Serialize};
 /// as the keeper record's holder, and a keeper record is never live.
 ///
 /// ```
-/// use uvrr::demo::ClientId;
+/// use uvrr::locks::ClientId;
 ///
 /// assert!(ClientId::new(0, 0).is_none(), "the nil identity is not a client");
 /// assert!(ClientId::new(7, 1).is_some(), "a client is a pair the client named");
@@ -60,7 +94,7 @@ use serde::{Deserialize, Serialize};
 /// the doctest below is the compile-time half of the claim the mint states:
 ///
 /// ```compile_fail
-/// use uvrr::demo::ClientId;
+/// use uvrr::locks::ClientId;
 ///
 /// let nil = ClientId::nil();
 /// let parts = ClientId { msb: 0, lsb: 0 };
@@ -117,6 +151,15 @@ where
 /// The table's stored lease record and the reply's lease shape. Every
 /// response carries the whole record (or none), so an observer classifies
 /// the lock's state without diffing successive replies.
+///
+/// The record's `expiry` is an ephemeral lease on the replicated clock:
+/// the fast-reads arithmetic of the module's documentation (Liskov and
+/// Cowling, 2012, §6.3.1) is the owner's to settle before the timeouts
+/// are chosen — the leader lease outlasting the reader lease plus the
+/// clock drift margin, the quorum view-change rounds as a safety margin
+/// beyond the expiry, no renewal while the cluster is idle, and the
+/// application's own judgement of whether a rare stale read during a
+/// leader crash is noise or an outage.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Lease {
     /// The lease's generation. Bumped on every holder change and on a
@@ -129,7 +172,7 @@ pub struct Lease {
     /// placeholder, which no client holds and which is never live.
     pub holder: ClientId,
     /// The clock-stamped expiry: `clock + window` at the holder-changing
-    /// set, on the demo's replicated clock. Requests never carry it.
+    /// set, on the replicated clock. Requests never carry it.
     pub expiry: u64,
     /// The granted window, in committed slots: the log's own progress the
     /// lease lives for, echoed so the reply is self-describing.
@@ -263,7 +306,7 @@ pub struct Service {
 impl Service {
     /// Executes one committed operation against the table.
     ///
-    /// `clock` is the demo's replicated clock, the slot the operation
+    /// `clock` is the replicated clock, the slot the operation
     /// applies at: the stamp the lease's expiry and every reply's
     /// `executed_at` carry. A rebuilt table re-executes the same
     /// operations at the same slots, so the stamps it produces are the
@@ -456,4 +499,195 @@ impl Service {
         self.locks = snapshot.locks;
         self.generations = snapshot.generations;
     }
+}
+
+/// The lock table's persistence contract: flush the whole table on the
+/// shutdown path, load it back on the regular path.
+///
+/// The law, restated on the trait itself so every implementation inherits
+/// it:
+///
+/// - **FLUSH is EAGER**: on the shutdown path the whole lock-table state
+///   is written in the foreground before the stop completes. A stop that
+///   cannot flush is a FAILED stop: it surfaces the failure, it never
+///   silently skips.
+/// - **LOAD is LAZY**: the regular path never loads eagerly at boot. The
+///   table starts empty and state materialises only on demand.
+/// - **A CRASHED boot DISTRUSTS the state file**: load returns nothing
+///   and the node rebuilds from the replica stream. Only a clean-stop
+///   file is loadable.
+///
+/// `flush` takes `&mut self` because a store may hold a staging
+/// position; `load` takes `&self` because loading must never mutate the
+/// store: the snapshot it hands back is the caller's to apply or drop.
+pub trait StateStore: Send + Sync {
+    /// Write the whole lock-table state, durably, before returning. The
+    /// eager half of the law: the caller is the shutdown path, in the
+    /// foreground, between the stop's first fence write and the final
+    /// one. An `Err` fails the stop; the caller surfaces it and never
+    /// skips it.
+    fn flush(&mut self, snap: &StateSnapshot) -> io::Result<()>;
+
+    /// Read the state back, or report that there is none to read.
+    ///
+    /// `Ok(None)` is every "there is nothing trustworthy here" answer:
+    /// no file, a version this build does not know, a length that does
+    /// not match the bytes present, a failed checksum, or a payload that
+    /// does not decode. Never an `Err` for a content problem: a fallback
+    /// that blocks the boot is an outage, and this is a fallback. The
+    /// crashed-boot guard lives at the call site, never here: a store
+    /// that is handed a load has already been cleared for it.
+    fn load(&self) -> io::Result<Option<StateSnapshot>>;
+}
+
+/// THE LAZY LOAD, with its guard, as one function: the seam's half of the
+/// law, kept beside the trait so the guard is stated once and can be
+/// driven without a node.
+///
+/// The guard has two clauses and both are refusals:
+///
+/// - **A CRASHED boot distrusts the file.** `clean_boot` is the fence's
+///   verdict: only a clean stop, the one whose final fence write landed
+///   over the completed flush, left a file worth reading. A crashed boot
+///   reads nothing and rebuilds from the replica stream, even when a
+///   perfectly readable file is sitting there.
+/// - **A populated table is never overwritten.** `table_empty` says the
+///   caller has established the table holds nothing; anything in it came
+///   from the regular path or an earlier load, and a load now would
+///   overwrite live state.
+///
+/// The one-shot clause, at most one load per node life, belongs to the
+/// caller, because it is per-life state and this function is not.
+///
+/// Every refusal is `Ok(None)`: the same answer a missing file gives.
+/// Nothing here can fail a boot.
+pub fn lazy_load(
+    store: &dyn StateStore,
+    clean_boot: bool,
+    table_empty: bool,
+) -> io::Result<Option<StateSnapshot>> {
+    if !clean_boot {
+        return Ok(None);
+    }
+    if !table_empty {
+        return Ok(None);
+    }
+    store.load()
+}
+
+/// The fence's status word, the one value the single file carries.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FenceWord {
+    /// The boot anchor: this life's writes are unproven.
+    Stopping,
+    /// The halt has begun; the flush is unproven under it.
+    Stopped,
+    /// The flush was forced over the halt; the clean word. Only a stop
+    /// that completed its flush writes it, so only a stop can make a
+    /// boot clean.
+    Flushed,
+}
+
+impl FenceWord {
+    /// The word as the file carries it: one word, one line.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            FenceWord::Stopping => "stopping",
+            FenceWord::Stopped => "stopped",
+            FenceWord::Flushed => "flushed",
+        }
+    }
+
+    /// The word a line reads as, or none for anything the fence did not
+    /// write.
+    #[must_use]
+    pub fn of_str(word: &str) -> Option<Self> {
+        match word {
+            "stopping" => Some(FenceWord::Stopping),
+            "stopped" => Some(FenceWord::Stopped),
+            "flushed" => Some(FenceWord::Flushed),
+            _ => None,
+        }
+    }
+}
+
+/// The boot fence's contract: write the status word, one forced write;
+/// read it back at boot; trust the disk.
+///
+/// `write` takes `&mut self` because a write is a transition of the
+/// fence's own state; `read` takes `&self` because reading is the boot's
+/// verdict and must never mutate the fence.
+pub trait BootFence: Send + Sync {
+    /// One forced write of `word`: staged temp file, fsync, rename,
+    /// parent fsync. The fence is one small file and the write is one
+    /// transition; there is nothing to batch and nothing to amortise.
+    ///
+    /// # Errors
+    ///
+    /// The disk refused. A stop that cannot advance its fence word is a
+    /// failed stop, and a boot that cannot write its anchor refuses to
+    /// start; the caller surfaces the error in both cases.
+    fn write(&mut self, word: FenceWord) -> io::Result<()>;
+
+    /// The word at boot, or `None` when no fence was ever written (the
+    /// first life). A file the fence did not write reads as
+    /// [`FenceWord::Stopping`], the unproven word: the fence classifies
+    /// the past conservatively and never invents the clean word.
+    ///
+    /// The clean word is the stop's to write and never the boot's. A boot
+    /// that reads [`FenceWord::Flushed`] refuses to start on it, and a
+    /// boot that reads anything else has no ground on which to promote
+    /// itself by writing it: the word vouches for a flush the boot did
+    /// not perform, and a fence that let a life buy its own clean verdict
+    /// would make the third word worthless. Every boot's own durable act
+    /// is the [`FenceWord::Stopping`] anchor, which says nothing and
+    /// proves nothing, which is exactly what a boot may claim.
+    ///
+    /// # Errors
+    ///
+    /// The read itself failed; only a disk error is an `Err`. Content
+    /// problems are classifications, never errors.
+    fn read(&self) -> io::Result<Option<FenceWord>>;
+}
+
+use crate::ids::Slot;
+
+/// A trigger fired at each applied commit.
+///
+/// Called synchronously on the apply path, once per applied commit,
+/// between the boot's one lazy state load and the state machine's
+/// execution: a hook sees the commit after the node's state has been
+/// settled for it and before the table has moved. A hook therefore
+/// observes commits in the order the replica committed them and never
+/// asynchronously with respect to them, and a hook that kills the process
+/// kills it at a commit the state file has not yet been told about.
+///
+/// The method returns nothing, and that is the whole contract. The
+/// callback carries no verdict: a hook cannot fail a commit, cannot
+/// refuse one and cannot tell the machinery anything, because the
+/// machinery has no use for the answer. Whatever a hook does, crash the
+/// process at a named commit, flush every N commits, log the commit, is
+/// the hook's own affair, and the machinery's ignorance is what keeps the
+/// seam a seam.
+///
+/// `&mut self` because a hook may hold a position across commits: an
+/// amortised flush counts them, and a counter is state. `Send + Sync`
+/// because a hook is mounted once and lives as long as the node does.
+pub trait CommitHook: Send + Sync {
+    /// One applied commit. `slot` is the slot the entry committed at, so
+    /// a hook can name the commit it acts on.
+    fn on_commit(&mut self, slot: Slot);
+}
+
+/// The hook that does nothing: the default wiring.
+///
+/// Every node built without an explicit hook holds this, so the default
+/// path pays one dynamic dispatch per commit and nothing else. A consumer
+/// mounting its own hook replaces it wholesale.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct NoOpHook;
+
+impl CommitHook for NoOpHook {
+    fn on_commit(&mut self, _slot: Slot) {}
 }

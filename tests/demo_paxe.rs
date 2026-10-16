@@ -22,7 +22,7 @@
 //! socket reads so that a defect fails the test instead of hanging it;
 //! neither can make it pass.
 
-#![cfg(feature = "demo-locks")]
+#![cfg(feature = "demo")]
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;

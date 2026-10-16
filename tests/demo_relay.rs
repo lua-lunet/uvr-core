@@ -6,7 +6,7 @@
 //! message, and the demo has no timers, so nothing here decides when a
 //! relay is due. Each test states the obligation in one sentence.
 
-#![cfg(feature = "demo-locks")]
+#![cfg(feature = "demo")]
 
 use uvrr::demo::relay::{Datagram, Ledger};
 use uvrr::wire::Tag;

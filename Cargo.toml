@@ -1,6 +1,6 @@
 [package]
 name = "uvrr-core"
-version = "0.15.2"
+version = "0.16.0"
 edition = "2024"
 # One toolchain rule, recorded beside the fields it governs: CI builds with
 # exactly the toolchain the crate is built and released with locally,
@@ -107,7 +107,8 @@ maelstrom = ["serde", "dep:serde_json"]
 # payload codec, and the `paxe-core` lane for the real socket transport in
 # `src/demo/paxe_transport.rs`, the one place this crate opens a socket or
 # links cryptography. Nothing else in the crate does.
-demo-locks = ["serde", "dep:paxe-core"]
+locks = ["serde"]
+demo = ["locks", "dep:paxe-core"]
 
 # Build-time tooling for `cargo test`, not a consumer's supply chain: nothing here
 # reaches a crate that depends on `uvrr-core`, and the [dependencies] gate above is

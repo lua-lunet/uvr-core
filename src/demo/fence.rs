@@ -1,22 +1,13 @@
-//! The boot fence: the single small file that says how the last life
-//! ended.
+//! The demo's boot fence: the single small file, the least environment
+//! that satisfies the contract.
 //!
-//! The contract is exactly one file, one status word, one write per
-//! transition, forced, renamed, and a boot that trusts what it reads
-//! back. No quorum of copies, no hash chain, no multiwrite superblock,
-//! no snapshotting. The demo's implementation is the trivial plain file;
-//! an industrial host mounts its superblock behind the same trait and
-//! changes nothing above it.
-//!
-//! The three words, in the order a life writes them:
-//!
-//! - [`FenceWord::Stopping`], the anchor written at every boot: this
-//!   life's writes are unproven. A crash never advances the word, so a
-//!   crash reads the anchor and nothing more.
-//! - [`FenceWord::Stopped`], the halt has begun. It vouches for nothing.
-//! - [`FenceWord::Flushed`], the state flush completed and was forced
-//!   over it. This is the clean word, the drain's proof: only it makes
-//!   the state file loadable, and only it can make a boot clean.
+//! The contract ([`BootFence`], with its [`FenceWord`]) lives in the core
+//! locks module (`crate::locks`); this file is the demo's own
+//! implementation: [`FileBootFence`], one plain file over the demo's
+//! [`Disk`] seam, one forced write per transition, read back at boot, the
+//! disk trusted. No quorum of copies, no hash chain, no multiwrite
+//! superblock, no snapshotting; an industrial host mounts its superblock
+//! behind the same trait and changes nothing above it.
 //!
 //! The demo performs no graceful stop, so its fences read the anchor
 //! forever: every boot after the first classifies the previous life as
@@ -28,82 +19,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::demo::disk::{Disk, std_disk, write_atomically};
-
-/// The fence's status word, the one value the single file carries.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum FenceWord {
-    /// The boot anchor: this life's writes are unproven.
-    Stopping,
-    /// The halt has begun; the flush is unproven under it.
-    Stopped,
-    /// The flush was forced over the halt; the clean word. Only a stop
-    /// that completed its flush writes it, so only a stop can make a
-    /// boot clean.
-    Flushed,
-}
-
-impl FenceWord {
-    /// The word as the file carries it: one word, one line.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            FenceWord::Stopping => "stopping",
-            FenceWord::Stopped => "stopped",
-            FenceWord::Flushed => "flushed",
-        }
-    }
-
-    /// The word a line reads as, or none for anything the fence did not
-    /// write.
-    #[must_use]
-    pub fn of_str(word: &str) -> Option<Self> {
-        match word {
-            "stopping" => Some(FenceWord::Stopping),
-            "stopped" => Some(FenceWord::Stopped),
-            "flushed" => Some(FenceWord::Flushed),
-            _ => None,
-        }
-    }
-}
-
-/// The boot fence's contract: write the status word, one forced write;
-/// read it back at boot; trust the disk.
-///
-/// `write` takes `&mut self` because a write is a transition of the
-/// fence's own state; `read` takes `&self` because reading is the boot's
-/// verdict and must never mutate the fence.
-pub trait BootFence: Send + Sync {
-    /// One forced write of `word`: staged temp file, fsync, rename,
-    /// parent fsync. The fence is one small file and the write is one
-    /// transition; there is nothing to batch and nothing to amortise.
-    ///
-    /// # Errors
-    ///
-    /// The disk refused. A stop that cannot advance its fence word is a
-    /// failed stop, and a boot that cannot write its anchor refuses to
-    /// start; the caller surfaces the error in both cases.
-    fn write(&mut self, word: FenceWord) -> io::Result<()>;
-
-    /// The word at boot, or `None` when no fence was ever written (the
-    /// first life). A file the fence did not write reads as
-    /// [`FenceWord::Stopping`], the unproven word: the fence classifies
-    /// the past conservatively and never invents the clean word.
-    ///
-    /// The clean word is the stop's to write and never the boot's. A boot
-    /// that reads [`FenceWord::Flushed`] refuses to start on it, and a
-    /// boot that reads anything else has no ground on which to promote
-    /// itself by writing it: the word vouches for a flush the boot did
-    /// not perform, and a fence that let a life buy its own clean verdict
-    /// would make the third word worthless. Every boot's own durable act
-    /// is the [`FenceWord::Stopping`] anchor, which says nothing and
-    /// proves nothing, which is exactly what a boot may claim.
-    ///
-    /// # Errors
-    ///
-    /// The read itself failed; only a disk error is an `Err`. Content
-    /// problems are classifications, never errors.
-    fn read(&self) -> io::Result<Option<FenceWord>>;
-}
+use crate::locks::{BootFence, FenceWord};
 
 /// The demo's own fence: one plain file, over the disk seam.
 ///
