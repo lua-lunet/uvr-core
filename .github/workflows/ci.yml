@@ -186,37 +186,30 @@ jobs:
       # clippy component: this job regenerates artefacts, it does not
       # lint or test.
       - uses: dtolnay/rust-toolchain@1.96.0
-      # The stamp, before anything reads the manifest: cargo reads
+      # The check, before anything reads the manifest: cargo reads
       # Cargo.toml to compile the exporters below, and the release
-      # carries the tag's own version. The checkout is a detached tag
-      # HEAD and the stamp is never committed and never pushed back, so
-      # the branch's own manifest keeps its own version. The read-back is
-      # the release discipline, checked once and failing closed: no
-      # version line to read, or a stamped version that is not the tag,
-      # aborts the release instead of shipping a lie.
-      - name: Stamp the manifest from the tag
+      # carries the tag's own version. The version bump is part of the
+      # change that earns the release, so the manifest the tag points at
+      # already declares the tag's version; the job verifies it and
+      # fails closed. A forgotten bump blocks the release instead of
+      # shipping a lie: no version line to read, or a manifest version
+      # that is not the tag, aborts the release. Nothing is ever
+      # stamped, committed, or pushed back from here.
+      - name: Verify the manifest carries the tag's version
         shell: bash
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME#v}"
-          # The address-less substitution is the form both BSD and GNU sed
-          # accept (`0,/re/` is GNU-only and no-ops elsewhere, which would
-          # abort every release rather than stamp one), and the manifest
-          # carries exactly one version line. The suffixed `-i.bak` is the
-          # in-place form both accept; the backup is removed in the same
-          # step, so the stamp is the only edit to the tree.
-          sed -i.bak "s|^version = \".*\"|version = \"$TAG\"|" Cargo.toml
-          rm -f Cargo.toml.bak
-          STAMPED=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          if [ -z "$STAMPED" ]; then
-            echo "the stamp did not land: no manifest version reads" >&2
+          DECLARED=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ -z "$DECLARED" ]; then
+            echo "no manifest version reads" >&2
             exit 1
           fi
-          if [ "$TAG" != "$STAMPED" ]; then
-            echo "tag v$TAG does not match the stamped manifest version $STAMPED" >&2
+          if [ "$TAG" != "$DECLARED" ]; then
+            echo "tag v$TAG does not match the manifest's declared version $DECLARED" >&2
             exit 1
           fi
-          echo "stamped the manifest at $STAMPED for tag v$TAG"
+          echo "the manifest declares $DECLARED for tag v$TAG"
       # The documented exporter, byte for byte the `make corpus-export`
       # target: the corpus from the reference behaviour. It is a `cargo
       # test` invocation of an #[ignore]d exporter, so this step compiles
