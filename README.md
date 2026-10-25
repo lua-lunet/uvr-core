@@ -69,13 +69,23 @@ The demo binary in this repo implements a trivial key-value store protocol so th
 
 ## Why this exists
 
-The concept of an external strong consistency service is one that has very sharp edges. It splits responsibility for quality, legitimacy, and performance across two product teams. Every client connected to the core is part of the full distributed system and must experience consistency. When there are silos of responsibility on the critical path then often no-ones hold themselves accountable the removal of every single source of outages. Crash safety is Crash-Stop-Self-Evict ("reincarnation"): see [docs/uvrr-protocols.md](docs/uvrr-protocols.md) (the reincarnation chapter).
+The concept of an external strong consistency service is one that has very sharp edges. It splits responsibility for quality, legitimacy, and performance across two product teams. Every client connected to the core is part of the full distributed system and must experience consistency. When there are silos of responsibility on the critical path then often no-ones hold themselves accountable the removal of every single source of outages. This repo aims to embed strong consistency with predictable leader rotation, viewstamped replication, and other things that will soon seem obviously desirable features in the second quarter of the twenty-first century. 
 
-If you are curious to see if embedding strong consistency directly into your application reduces the complexity, costs and latencies of your system then try this crate.
+In the second quarter of the twenty-first century, clusters that run across three data centres, that have a uniform configuration, where there is a single stable leader, that automatically fails over in a round-robin manner, with a client api that is HTTP without transactions, where clients connect via a cloud-based sticky load balancer, is the a very compelling architecture: 
 
-## Evidence
+- Stable storage capacity is near infinite at extremely low costs. Business applications can simple first post to a storage solution to get back an URL and use the URL as a transparent handle to the data. Your client API simply needs to hide the fact that the get/put of the bytes goes to a storage solution, whereas all the real logic goes to your strongly consistent cluster that works with the URLs. 
+- Stable storage is a solved problem on-prem or on a VPS or on your laptop with open-source MinIO and others. There are manny S3-like endpoint on-prem, or in private data centre, or on EU sovereign cloud providers, else via on a global public cloud provider. Your author worked at a global enterprise that used a major disk array vendor for on-prem NAS and SAN. That enterprise disk manufacturer's enterprise storage solution has an S3 API endpoint that was the vendor's own webapp writing to the vendor's disk arrays on-prem. In the EU, cloud providers like Scaleway in France run the commercial version of the open-source min.io system that is written in Go. The S3 protocol, which does not support transactions, has been the de facto standard for file storage for many years now. 
+- All good sovereign or regional cloud providers have three independent client resilience zones per region. Using a three-node configuration is normal.
+- While global business-to-consumer (B2C) dominates what is fashionable for resume-driven engineering, in reality, government-to-consumer for regional governments and most countries worldwide can easily fit legitimate books-and-records data in a cost-effective three-node cluster. [How Netflix Uses Java – 2025](https://www.youtube.com/watch?v=XpunFFS-n8I) Edition by Paul Bakker of the Netflix Java Platform team, recorded at JavaOne 2025, and his 2023 paper [How Netflix Really Uses Java](https://www.infoq.com/presentations/netflix-java/) indicate that even a hyperscale company may have hundreds or thousands of internal applications. 
+- Servers with hundreds of gigs of RAM and async write-behind to have hundreds of gigs of storage are possible for mid-sized businesses. Yet in the first quarter of the twenty-first century, on an internal enterprise cloud training course, students were tasked with spinning up a normal VM using cloud tools. Your author noticed there was no enforced policy on the type of VM that could be launched on the public cloud subscription paid for by his employer, so he launched a server with 128 cores, 1G of disk and 265G of RAM, printed off the details of CPU/RAM/Disk, then deleted it. When you can first offload data to S3 to have fixed-size data records that are URLs so that you can then have a three-node cluster that can scale to far beyond the wildest ambitions of most systems. You can start with three very small VMs and scale up to a beyond your wildest dreams in terms of the number of records as long as you can easily reconfigure the live server to upgrade the VMs dynamically when the service is online. 
 
-The demo kv replication passing Maelstrom testing is not evidence of zero bugs. Yet it is a demonstration of an absence of shallow bugs and that the library has some resilience to network partitions, crashes, or combinations of both. If you build a system on top of this library the bugs may be any  combination of all the code. You should consider writing custom Maelstrom logic to validate your entire system. 
+Those previous statements are in effect a manifesto for dynamically reconfigurable Viewstamped Replication Revisited. 
+
+If you are curious to see if embedding strong consistency directly into your application reduces the complexity, costs and latencies of your system, then try this crate.
+
+## Maelstrom Tire-Kicking
+
+The demo kv replication passing Maelstrom testing is not evidence of zero bugs. Yet it is a demonstration of an absence of shallow bugs and that the library has some resilience to network partitions, crashes, or combinations of both. If you build a system on top of this library, the bugs may be any  combination of all the code. You should consider writing custom Maelstrom logic to validate your entire system. 
 
 `make e2e` does a docker build to run the end-to-end Maelstrom test suite.
 
@@ -101,18 +111,18 @@ The `locks` feature carries the advisory-locks machinery at the core surface, an
 socket transport, which seals every datagram with the
 [PAXE](https://github.com/lua-lunet/paxe-core) codec. The codec links libsodium statically and requires a build of it with
 the hardware AES-256-GCM path; without one it refuses to run, by design,
-naming the cause rather than falling back to a weaker cipher. That makes
+naming the cause rather than falling back to a weaker cypher. That makes
 the build machine's sodium part of this feature's requirements:
 
 - **macOS**: `brew install libsodium` (1.0.22 carries the path).
 - **Linux**: `SODIUM_PREFIX=/tmp/libsodium bash scripts/build_libsodium.sh`,
   then `export PAXE_SODIUM_LIB_DIR=/tmp/libsodium/lib`. The distro package is
-  not enough on arm64: Ubuntu 24.04 and Debian trixie ship 1.0.18, whose
+  not enough on arm64: Ubuntu 24.04 and Debian Trixie ship 1.0.18, whose
   archive has no ARM Crypto Extensions path. The script pins the tarball by
   digest and builds it static-only.
 
 The CI lanes do exactly this, which is why the sealed-transport proofs run
-on every runner rather than only where the cipher happens to exist.
+on every runner rather than only where the cypher happens to exist.
 
 ### The compliance corpus
 
@@ -126,7 +136,7 @@ committed bytes drift from what the reference produces.
 
 `make hooks` installs the repository's pre-push gate (it points git at the
 committed hooks with `git config core.hooksPath .githooks`). Before anything
-reaches the remote the hook runs the full verification gate, including the
+reaches the remote, the hook runs the full verification gate, including the
 slow and expensive maelstrom lane. It is skippable with
 `git push --no-verify`; please do not skip it.
 
@@ -171,9 +181,8 @@ docker run --rm -e NODES=5 -e TIME_LIMIT=180 -e RATE=20 -e INTERVAL=10 uvrr-core
 
 See `Dockerfile.maelstrom` for the build definition.
 
-## Two things that will mislead you
 
-**Cluster size and the fault budget.** Jepsen's default kill targets include
+N.B. **Cluster size and the fault budget.** Jepsen's default kill targets include
 `:majority` and `:all`. At `NODES=3` (f=1) that routinely kills two of three
 nodes, and a crash-fault protocol tolerating one failure then cannot make
 progress *by construction*, you get `ok-count 0`, `:valid? false`, and a
@@ -183,18 +192,10 @@ the verdict.
 
 ## Status
 
-**Release advisory.** v0.13.0 is buggy on the fused-reconfiguration acceptance
-path: the per-slot `Prepare` acceptance perimeter judged a system entry against
-the committed configuration alone, so the accepted-but-uncommitted predecessors
-the `Fuse` envelope folds whole were invisible to it, and a schedule the envelope
-accepted and committed entire was dropped entry by entry when it arrived as
-individual `Prepare`s (`docs/uvrr-fuse.md` §6). Fixed in 0.13.1.
+The core is open to extension and closed to modification that would invalidate
+the invariants of the algorithm. 
 
-Pre-alpha: the API is not stable. The protocol is covered by the tests above
-and by Maelstrom. The codebase is intended to stay small and has adversarial
-tests; an absence of new features is an absence of bugs and regressions. The
-core is open to extension and closed to modification that would invalidate
-the invariants of the algorithm.
+The naming of everything is subject to change until the final paper is published. Naming is hard, so expect lots and lots of renaming. I probably will publish a v1.0.x simply at some point to show that the solution is seen as complete to some definition of complete where I can find some external definitions of "complete" to align to. 
 
 ## Attribution
 
