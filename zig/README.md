@@ -1,7 +1,7 @@
 # zig/ — vendored TigerBeetle 0.17.9 storage stack
 
 This tree vendors TigerBeetle 0.17.9's actual storage stack and drives it
-through a C-ABI static library; `examples/uvrr-reincarnation/` is the consumer.
+through a C-ABI static library; `examples/uvr-reincarnation/` is the consumer.
 
 ## Vendored (verbatim, from upstream `src/`)
 
@@ -19,7 +19,7 @@ through a C-ABI static library; `examples/uvrr-reincarnation/` is the consumer.
   grid, no client replies)
 - `vsr/superblock.zig` — slimmed VSRState, `uvrr_incarnation` +
   `uvrr_marker` fields (the four-state reincarnation marker of
-  `docs/uvrr-durability-model.md` §5.1), checksum masked over the marker
+  `docs/uvr-durability-model.md` §5.1), checksum masked over the marker
   byte, no async SuperBlockType (sync driver in `uvrr/store.zig`)
 - `trace/event.zig`, `trace.zig`, `queue.zig`, `time.zig` — dropped imports
   of the state machine / replica / fuzz closure that this tree doesn't vendor
@@ -33,7 +33,7 @@ through a C-ABI static library; `examples/uvrr-reincarnation/` is the consumer.
 - `uvrr/membership.zig` — ops WAL (add_one/remove_one/double/halve), one
   4 KiB checkpoint block, replay; modeled on TB's `src/aof.zig`
 - `uvrr/store.zig` — synchronous driver over the vendored IO + quorums; the
-  marker transition machine (§5.1 of `docs/uvrr-durability-model.md`, the
+  marker transition machine (§5.1 of `docs/uvr-durability-model.md`, the
   twin of `src/replica/reincarnation.rs`): `format` (pristine `stopped`
   copyset), `open` (the boot: 2-of-4 open quorum, higher-identity-wins
   inside the working quorum, the T2/T3 decision and its uniform 4x write,
@@ -44,7 +44,7 @@ through a C-ABI static library; `examples/uvrr-reincarnation/` is the consumer.
 
 ## Build
 
-`examples/uvrr-reincarnation/build.sh` compiles `zig/root.zig` with TB's
+`examples/uvr-reincarnation/build.sh` compiles `zig/root.zig` with TB's
 pinned Zig 0.14.1 into `libuvrr_sb.a` (or run `zig/build.sh` for the lib only).
 
 ## Tests

@@ -18,7 +18,7 @@ WPaxos, where leaders own object partitions and use locality-aware phase-2
 quorums; phase 1 transfers ownership when an object is stolen.
 
 The classification is useful for comparison, not as a proof that systems in a
-row share the same safety conditions. In particular, UPaxos and uVRR should be
+row share the same safety conditions. In particular, UPaxos and UVR should be
 analysed through their configuration-transition and quorum-intersection
 invariants rather than assigned a safety property solely from this table.
 

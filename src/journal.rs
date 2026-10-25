@@ -14,7 +14,7 @@
 //! the core, provided it either satisfies a protocol read or reports the requested
 //! history unavailable, at which point state transfer must obtain an
 //! adequate state elsewhere (VRR-2012's §10 recovery; our design admits it only
-//! era-proof-guarded, `docs/uvrr-protocols.md`, the reincarnation chapter). Adding a retention knob to the trait would convert a host
+//! era-proof-guarded, `docs/uvr-protocols.md`, the reincarnation chapter). Adding a retention knob to the trait would convert a host
 //! policy into a protocol obligation and thereby preclude a legal host, which
 //! `docs/architecture.md` classifies as a defect. The split is enforced mechanically:
 //! `tests/journal_contract.rs` scans the trait definitions and fails the build if the

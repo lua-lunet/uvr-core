@@ -1,7 +1,7 @@
 //! The rejoin gossip's joiner half: the host obligation a node outside
 //! the cluster owes the wire.
 //!
-//! Rejoining is a gossip protocol outside the main uVRR protocol: a node
+//! Rejoining is a gossip protocol outside the main UVR protocol: a node
 //! outside the cluster never assumes the cluster will come to it. It
 //! gossips its wish to join to every node it knows about, on its own
 //! resend discipline, and the cluster streams it until it is promoted.

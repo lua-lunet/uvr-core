@@ -3,7 +3,7 @@
 //! Spec §8.7.1 (configuration), §8.7.2 (reconfiguration operations), §8.7.5 (closure of
 //! weighted-majority configurations), §8.7.6 (pivot condition), §8.7.7 (non-stop
 //! transition), §8.7.8 (primary failure during overlap mode); and
-//! `docs/uvrr-protocols.md`, the reconfiguration-rules chapter §1–§4 (the command alphabet and its
+//! `docs/uvr-protocols.md`, the reconfiguration-rules chapter §1–§4 (the command alphabet and its
 //! boundaries, R1–R15), §9 (the snapshot and the operation WAL).
 //!
 //! A configuration is an era, an ordered member list, and a non-negative integer weight
@@ -32,7 +32,7 @@
 //! batch is a unit batch moving at most one unit of per-node mass (R14); genesis and
 //! nested batches are refused (R15). A `NOMINATE` rides a batch as a zero-mass
 //! passenger and never occupies a slot of its own
-//! (`docs/uvrr-protocols.md`, the NOMINATE chapter). The planner that partitions an operation
+//! (`docs/uvr-protocols.md`, the NOMINATE chapter). The planner that partitions an operation
 //! stream into legal batches is [`crate::reconfiguration`].
 //!
 //! The relation `era(view) + 1 >= era(slot) >= era(view)` bounds which configuration may
@@ -450,7 +450,7 @@ impl Configuration {
             // in order within that one era.
             SystemOperation::Batch(ops) => self.apply_batch(ops),
             // A nomination is a rider, never an establishing operation of
-            // its own (`docs/uvrr-protocols.md`, the NOMINATE chapter): its bump
+            // its own (`docs/uvr-protocols.md`, the NOMINATE chapter): its bump
             // enters the era of the batch that carries it, so a solitary
             // entry names an era nothing enters and is refused by name.
             SystemOperation::Nominate { .. } => Err(ConfigError::SolitaryNomination),
@@ -632,7 +632,7 @@ impl Configuration {
             }
             // A nomination moves no mass and no membership: the rider yields
             // the identical configuration
-            // (`docs/uvrr-protocols.md`, the NOMINATE chapter). The offset's strict
+            // (`docs/uvr-protocols.md`, the NOMINATE chapter). The offset's strict
             // positivity is the jump's first discipline
             // (`formal/uvrr-lean/UVRR/ViewJump.lean`), checked at the fold so
             // no committed batch carries a seat that names no increment.
@@ -716,7 +716,7 @@ impl Configuration {
         Ok(current)
     }
 
-    /// The per-slot fold of a packed slab (`docs/uvrr-fuse.md` §1, the
+    /// The per-slot fold of a packed slab (`docs/uvr-fuse.md` §1, the
     /// reconfiguration law): the ops of one establishing batch judged in slot
     /// order, each **in-era** at its point in the sequence — a [`SystemOperation::Nominate`]
     /// rider folds to the identical configuration beside its carrier, never the
@@ -885,7 +885,7 @@ pub enum ConfigError {
     TotalWouldBeZero,
     /// A [`SystemOperation::Nominate`] occupied a slot of its own. The nomination is a rider: it rides
     /// the establishing batch of the era its view bump enters
-    /// (`docs/uvrr-protocols.md`, the NOMINATE chapter), so a solitary nomination entry names
+    /// (`docs/uvr-protocols.md`, the NOMINATE chapter), so a solitary nomination entry names
     /// an era its own bump never enters and is refused rather than established.
     SolitaryNomination,
     /// A [`SystemOperation::Nominate`] named a zero offset. The jump strictly increases
@@ -997,7 +997,7 @@ pub enum SystemOperation {
     /// departure route; see [`Configuration::apply`].
     Leave(NodeId),
     /// A view increment carried as a compare-and-swap at a committed slot
-    /// (`docs/uvrr-protocols.md`, the NOMINATE chapter). Moves no mass and no
+    /// (`docs/uvr-protocols.md`, the NOMINATE chapter). Moves no mass and no
     /// membership: folded in era it yields the identical configuration, so
     /// it rides the establishing batch of the era whose positive-weight
     /// sequence changes, and a node applying it at commit bumps its view

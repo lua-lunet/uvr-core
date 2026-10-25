@@ -1,4 +1,4 @@
-//! The NOMINATE ladder's shared machinery (`docs/uvrr-protocols.md`, the
+//! The NOMINATE ladder's shared machinery (`docs/uvr-protocols.md`, the
 //! NOMINATE chapter): the solver's schedules driven through the ordinary
 //! pipeline with the constant-leader assertion, shared by the suites that
 //! step or fuse the same schedules.

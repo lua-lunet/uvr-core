@@ -214,7 +214,7 @@ fn disjoint_quorums_exist(
 
 /// The witness: an inclusion-minimal disjoint quorum pair, or `None` if the families
 /// intersect universally (the refusal-witness contract of
-/// `docs/uvrr-durability-model.md` §8.7.4).
+/// `docs/uvr-durability-model.md` §8.7.4).
 ///
 /// Runs the fast scan first, then, only on the refusal path, a thorough pass that
 /// enumerates subsets in increasing size and, for each `family_a` quorum, searches
@@ -292,7 +292,7 @@ fn check_cap(config: &Configuration) -> Result<(), QuorumError> {
 /// per subset on the valid path; `N <= `[`crate::configuration::MAX_MEMBERS`], so at most 3 × 65536 × 2
 /// evaluations per call, microseconds. A refusal carries the inclusion-minimal
 /// witness and pays the `3^N` enumeration bound, the refusal-witness contract of
-/// `docs/uvrr-durability-model.md` §8.7.4.
+/// `docs/uvr-durability-model.md` §8.7.4.
 pub fn validate_era(
     strategy: &dyn QuorumStrategy,
     config: &Configuration,

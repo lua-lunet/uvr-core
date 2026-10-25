@@ -1,5 +1,5 @@
 //! Reincarnation: the Crash-Stop-Self-Evict production logic
-//! (`docs/uvrr-protocols.md`, the reincarnation chapter).
+//! (`docs/uvr-protocols.md`, the reincarnation chapter).
 //!
 //! Three pieces live here, each the code of one section of that document:
 //!
@@ -23,13 +23,13 @@
 //!   ordinary reconfiguration pipeline, one establishing operation at a
 //!   time, each commit a distinct era (§5), every step gated by the same
 //!   closed gates any host-proposed operation passes.
-//! * **The marker transition machine** (`docs/uvrr-io-obligations.md`, the boot-gate chapter §2, the boot decision of `docs/uvrr-protocols.md`, the reincarnation chapter §1): the pure Rust twin
+//! * **The marker transition machine** (`docs/uvr-io-obligations.md`, the boot-gate chapter §2, the boot decision of `docs/uvr-protocols.md`, the reincarnation chapter §1): the pure Rust twin
 //!   of the vendored TigerBeetle store (`zig/uvrr/store.zig`). The four
 //!   superblock markers are an ordered transition system,
 //!   `Running ──stop──> Stopping ──drain──> Stopped ──boot, 2-of-4──>
 //!   Restarting`, and `Running ──crash──> (markers unchanged) ──boot, no
 //!   2-of-4 Stopped──> Joining`, each state naming the transition that must
-//!   have completed for it to exist. uVRR performs **no disk flushes on the
+//!   have completed for it to exist. UVR performs **no disk flushes on the
 //!   normal path**: the stop command writes [`crate::lifecycle::Marker::Stopping`] 4x
 //!   ([`crate::lifecycle::SuperblockCopies::begin_stop`]), the HOST drains, flushes WALs and
 //!   grids, strictly between the two marker writes, and
@@ -285,7 +285,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         if voting { None } else { Some(machine.new) }
     }
 
-    /// The stream targets (`docs/uvrr-protocols.md`, the rejoin chapter §3):
+    /// The stream targets (`docs/uvr-protocols.md`, the rejoin chapter §3):
     /// the memo target (§7) plus the gossip-witness list, the leader
     /// pushes all phase-2s and commits to every node the join gossip has
     /// named, as if those nodes were part of the cluster. A witness the
@@ -315,7 +315,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         targets
     }
 
-    /// The rejoin gossip's request (`docs/uvrr-protocols.md`, the rejoin chapter
+    /// The rejoin gossip's request (`docs/uvr-protocols.md`, the rejoin chapter
     /// §2–§3): the sender's frontiers, fired at every node. Every node that
     /// hears it records the sender, that half rides the dispatch's
     /// [`crate::Self::with_join_gossip_witness`] wrap, whatever this planner

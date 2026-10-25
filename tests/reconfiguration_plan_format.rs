@@ -1,5 +1,5 @@
 //! The plan format: the plan type, its JSONL codec, and the schedules the
-//! solver emits (`docs/uvrr-protocols.md`, the solver chapter).
+//! solver emits (`docs/uvr-protocols.md`, the solver chapter).
 //!
 //! The solver's law is pinned in `tests/solve_spec.rs`; what is pinned here
 //! is the plan artefact itself: the replacement schedules the solver emits
@@ -52,7 +52,7 @@ fn plan_replacement(start: &Configuration, old: NodeId, new: NodeId) -> Plan {
 }
 
 /// The header and step lines of the three-node two-era replacement plan, in the
-/// JSONL schema of `docs/uvrr-protocols.md`, the solver chapter. The ids are the
+/// JSONL schema of `docs/uvr-protocols.md`, the solver chapter. The ids are the
 /// lawful packed pairs: systems 1, 2, 3 at crash counter 1, and the
 /// reincarnated identity is system 4's first life.
 #[cfg(feature = "serde")]

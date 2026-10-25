@@ -29,14 +29,14 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "uVRR Fuse \u2014 one datagram per era, telescoped acknowledgements (wire encoding, NOT a new protocol message)",
+   "text": "UVR Fuse \u2014 one datagram per era, telescoped acknowledgements (wire encoding, NOT a new protocol message)",
    "fontSize": 21,
    "fontFamily": 5,
    "textAlign": "left",
    "verticalAlign": "top",
    "baseline": 18,
    "containerId": null,
-   "originalText": "uVRR Fuse \u2014 one datagram per era, telescoped acknowledgements (wire encoding, NOT a new protocol message)",
+   "originalText": "UVR Fuse \u2014 one datagram per era, telescoped acknowledgements (wire encoding, NOT a new protocol message)",
    "lineHeight": 1.25
   },
   {
@@ -1103,14 +1103,14 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "docs/uvrr-fuse.md \u00a76 paces eras one-RTT-each; the paper addendum telescopes one response set across all six transitions.",
+   "text": "docs/uvr-fuse.md \u00a76 paces eras one-RTT-each; the paper addendum telescopes one response set across all six transitions.",
    "fontSize": 13,
    "fontFamily": 5,
    "textAlign": "left",
    "verticalAlign": "top",
    "baseline": 11,
    "containerId": null,
-   "originalText": "docs/uvrr-fuse.md \u00a76 paces eras one-RTT-each; the paper addendum telescopes one response set across all six transitions.",
+   "originalText": "docs/uvr-fuse.md \u00a76 paces eras one-RTT-each; the paper addendum telescopes one response set across all six transitions.",
    "lineHeight": 1.25
   }
  ],

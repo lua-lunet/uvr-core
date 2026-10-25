@@ -1,5 +1,5 @@
 //! Exhaustive per-message properties: the `Reincarnation` announcement the
-//! leader acts on (`docs/uvrr-protocols.md`, the reincarnation chapter §4, §7).
+//! leader acts on (`docs/uvr-protocols.md`, the reincarnation chapter §4, §7).
 //!
 //! One message over the cross product of the dimensions the handler branches
 //! on: the receiver's role (only the leader drives the forced sequence), the

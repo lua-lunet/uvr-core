@@ -1,5 +1,5 @@
 //! The era planner and the batch era rule
-//! (`docs/uvrr-protocols.md`, the reconfiguration-rules chapter).
+//! (`docs/uvr-protocols.md`, the reconfiguration-rules chapter).
 //!
 //! The corpus covers the §11 test matrix row by row: the batch fold's refusals
 //! (R13–R15, the weight domain R1, the per-op boundaries R7–R12), the reduce-left

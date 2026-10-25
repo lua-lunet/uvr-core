@@ -1,5 +1,5 @@
 //! The compliance suite's reference runner and exporter
-//! (`docs/uvrr-host-compliance.md`). The runner replays every case in the
+//! (`docs/uvr-host-compliance.md`). The runner replays every case in the
 //! corpus through the abstract host interface and asserts the named
 //! expectations; the exporter regenerates the corpus from the same
 //! execution path, so the committed bytes and the codec cannot drift.
@@ -415,7 +415,7 @@ mod serde_gated {
 
     /// The prepare-accept family: the [`uvrr::wire::Tag::Prepare`] a backup receives, over the
     /// cross product of its dimensions, minus the unreachable input
-    /// (`docs/uvrr-host-compliance.md` §7): the piggyback claiming the arriving
+    /// (`docs/uvr-host-compliance.md` §7): the piggyback claiming the arriving
     /// slot itself, which no conforming primary emits, whose refusal is
     /// recorded by the mint-based exhaustive suite. The chain-fold pair
     /// closes over the system entry's own dimension, the fold the arriving
@@ -451,7 +451,7 @@ mod serde_gated {
         }
     }
 
-    /// The accept-perimeter chain fold (`docs/uvrr-fuse.md` §6): an arriving
+    /// The accept-perimeter chain fold (`docs/uvr-fuse.md` §6): an arriving
     /// system entry's guards are evaluated against the configuration the
     /// fold of the accepted-but-uncommitted predecessors established, not
     /// against the committed configuration alone, exactly as though the
@@ -776,8 +776,8 @@ mod serde_gated {
 
     /// The commit-time view advance over a slab's own eras: the grounded
     /// nomination walk of the per-slot era law
-    /// (`docs/uvrr-fuse.md` §4 step 4, the NOMINATE chapter of
-    /// `docs/uvrr-protocols.md`) and the per-slot view-jump law that
+    /// (`docs/uvr-fuse.md` §4 step 4, the NOMINATE chapter of
+    /// `docs/uvr-protocols.md`) and the per-slot view-jump law that
     /// governs it.
     ///
     /// The slab is the join-and-promote schedule with the nomination rider
@@ -859,7 +859,7 @@ mod serde_gated {
     // The reincarnation-safety family
     // ----------------------------------------------------------------------
 
-    /// The forced sequence's choreography (`docs/uvrr-protocols.md`, the reincarnation chapter):
+    /// The forced sequence's choreography (`docs/uvr-protocols.md`, the reincarnation chapter):
     /// the missed proposal, the crash, the bumped reopen, the announcement,
     /// the first forced batch, the ordinary view change into the era it
     /// established, and the idempotent re-announce that carries the final
@@ -971,7 +971,7 @@ mod serde_gated {
     /// The slab is the join-and-promote schedule of `fuse_ops`, one
     /// establishing operation per packed slot, so its fold stamps the head
     /// slot with the head ballot's era and the tail slot with the era one
-    /// establishing operation on (`docs/uvrr-fuse.md` §1). The acceptor's
+    /// establishing operation on (`docs/uvr-fuse.md` §1). The acceptor's
     /// journal holds those stamped entries, and the era authorisation admits
     /// the header's era and its successor at either slot, so all four routes
     /// reach the retransmission rule and are discriminated by the entry the
@@ -979,7 +979,7 @@ mod serde_gated {
     /// fold stamped and is refused at any other's.
     ///
     /// The two tail-slot cases state the promise-to-tail obligation
-    /// (`docs/uvrr-fuse.md` §3): the promise the accept incurred is the
+    /// (`docs/uvr-fuse.md` §3): the promise the accept incurred is the
     /// slab's last ballot, so the tail slot answers at the tail's own era and
     /// nothing below it is ever folded into that slot. The two head-slot cases
     /// state the per-slot era law: the head slot carries the head's era and

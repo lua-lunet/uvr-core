@@ -1,4 +1,4 @@
-# uVRR protocols: reconfiguration, reincarnation, rejoin, and the leader's instruments
+# UVR protocols: reconfiguration, reincarnation, rejoin, and the leader's instruments
 
 The protocol documents in one place. The reconfiguration-rules chapter
 states the command alphabet, its boundaries, and the era planner; the
@@ -10,7 +10,7 @@ letter that rides them. Each chapter keeps its own section numbering: a
 reference of the form "the reincarnation chapter §6" names a section within
 that chapter.
 
-## uVRR reconfiguration rules: the command alphabet, its boundaries, and the era planner
+## UVR reconfiguration rules: the command alphabet, its boundaries, and the era planner
 
 The rules of this document are mechanically confirmable. Each one is checked by
 exactly one refusal in the fold (`src/configuration.rs`) or the era planner
@@ -56,7 +56,7 @@ than the membership cap, and standbys may come and go.
 | R3 | A node leaves the cluster only after its voting weight has been changed to zero (`Leave` is legal only at weight 0). |
 | R4 | A zero-weight member never votes: it is not a voter in any quorum evaluation, so it is not counted against any quorum. |
 | R5 | A leader does not count any response from a zero-weight member toward any vote, and every replica drops view-change-like messages from a zero-weight member. The one message a non-voting identity may send that is never dropped is the `Reincarnation` announcement (§4 of the reincarnation chapter), the entry ticket. The one response a departing identity's answer still counts toward is the non-stop transition's own planned quorum (§8.7.7): the pivot places the departing member inside `qI` and the construction solicits exactly that vote, so the §6 membership-discard (the reincarnation chapter) admits precisely that solicited `EvidenceKind::Planned` answer past ingress, every other message from the departed identity stays refused by name. |
-| R6 | A leader sends prepare and commit to zero-weight standbys so they stay caught up: warm standbys, swappable in by uVRR. |
+| R6 | A leader sends prepare and commit to zero-weight standbys so they stay caught up: warm standbys, swappable in by UVR. |
 
 ### 3. The operation alphabet
 
@@ -133,7 +133,7 @@ leader evaluates a proposed batch on a clone before proposing it for consensus,
 thread-safely, with no lock and no mutation.
 
 The planner's output is what travels on the wire. Under Fuse
-(`docs/uvrr-fuse.md`) a schedule of at least two operations is packed:
+(`docs/uvr-fuse.md`) a schedule of at least two operations is packed:
 one datagram per recipient, the head ballot in the envelope header, each op
 at its own consecutive slot and its own ballot, the solver computing those
 ballots slot by slot. The planner certifies the sequence once; the
@@ -245,7 +245,7 @@ intersections of integer sets", has standard names:
 | `DOUBLE`/`HALVE` change no quorum family | **common-factor normalization**: the majority threshold `floor(T/2) + 1` scales with `T`, so `18/27 = 2/3`, the "zero op" |
 | Even totals need one more than half, odd totals split exactly | `floor(T/2) + 1` is the strict-majority threshold: even `T` is "eager" (`2n → n+1`), odd `2n+1 → n+1` splits evenly |
 
-The exhaustive check the tests use is `uvrr::quorum::validate_transition` (the full
+The exhaustive check the tests use is `uvr::quorum::validate_transition` (the full
 disjoint-pair search across the union node set); the planner's unit rule is the
 cheap sufficient precondition a leader evaluates as a what-if, and every schedule
 this document admits passes the exhaustive check.
@@ -293,18 +293,18 @@ Every rule has a test that can fail. The matrix:
 | snapshot serde round-trip; tampered snapshot refused at inflation | §9 |
 | snapshot + WAL fold ≡ folding the flat planned stream | §9 |
 
-## uVRR reincarnation: the Crash-Stop-Self-Evict protocol
+## UVR reincarnation: the Crash-Stop-Self-Evict protocol
 
 ### 1. Model statement
 
-uVRR by definition does **not** allow Crash-Recover (CR). It enforces
+UVR by definition does **not** allow Crash-Recover (CR). It enforces
 **Crash-Stop-Self-Evict**, called **reincarnation**. A node whose volatile state was
 lost is, by construction, a *different node*: it reopens under a new identity and its
 old identity is evicted from the voting configuration. Same-identity recovery after
 volatile-state loss is unrepresentable in the protocol. Classic VRR-2012 diskless
 quorum recovery (its §4.3) is not implemented; there is no amnesia recovery protocol.
 Classic VRR's published recovery failure (the DISC'17 Appendix B.1 amnesia class,
-Michael et al.) is literature about the classic crash-recover class; uVRR eliminates
+Michael et al.) is literature about the classic crash-recover class; UVR eliminates
 the class by construction rather than repairing it.
 
 ### 2. Durable identity contract: the four superblocks
@@ -326,7 +326,7 @@ Startup classification:
 
 **Dirty path:** bump the incarnation (new identity), write new identity + `flushed`
 to all four superblocks, then enter the wire phase (§4), the identity law of
-`docs/uvrr-io-obligations.md`, the boot-gate chapter §5: the bumped pair is
+`docs/uvr-io-obligations.md`, the boot-gate chapter §5: the bumped pair is
 flushed before the first
 announcement, unconditionally, seated or not. The state machine is:
 
@@ -339,7 +339,7 @@ announcement, unconditionally, seated or not. The state machine is:
 | `reincarnating` | wire phase: old identity pending eviction, new identity a weight-0 standby |
 
 The identity is named by the durable pair `{systemIdentifier, crashCounter}`
-(`docs/uvrr-io-obligations.md`, the boot-gate chapter §5): the
+(`docs/uvr-io-obligations.md`, the boot-gate chapter §5): the
 sysadmin-assigned `systemIdentifier` is burnt
 into the marker before first boot; the crash counter is durable in the same
 file; both are one-indexed and never read as zero; and a bumped value is
@@ -549,15 +549,15 @@ owns the commit frontier.
  , the frown operator and the exact quorum-overlap chain
   `QIIe ⌢ QIe ⌢ QIIe+1 ⌢ QIe+1`.
 - <https://simbo1905.wordpress.com/2026/08/12/viewstamped-replication-revisited/>
- , uVRR motivation; TigerBeetle-style durability framing.
+ , UVR motivation; TigerBeetle-style durability framing.
 - <https://simbo1905.wordpress.com/2024/04/12/the-network-is-faster-than-the-disk/>
  , the deferred-flush economic rationale (§3).
 
-## uVRR rejoin gossip and witnesses
+## UVR rejoin gossip and witnesses
 
 ### 1. Model statement
 
-Rejoining is a **gossip protocol outside the main uVRR protocol**. A node that
+Rejoining is a **gossip protocol outside the main UVR protocol**. A node that
 is not part of the cluster never assumes the cluster will come to it: it
 gossips to find the cluster, and the cluster streams it until it is promoted.
 The gossip layer exists so that the reincarnated node arrives at its first
@@ -693,8 +693,8 @@ caught up. The gossip layer is the outer complement to that mechanism:
 
 ## Weighted reconfiguration solver
 
-`uvrr::solve::solve(current, target)` returns the legal operation path from
-the current configuration to the target, and `uvrr::solve::fold(path,
+`uvr::solve::solve(current, target)` returns the legal operation path from
+the current configuration to the target, and `uvr::solve::fold(path,
 current, (era, view, slot))` places the path into slots, computing the era
 and the view each slot establishes. The search is exhaustive over the mover
 set with a visited set over membership shapes — at most 16 members, weights
@@ -710,13 +710,13 @@ The fold advances the era at every establishing slot and mints the
 `Nominate` rider that keeps the leader stable across the reconfiguration
 (the NOMINATE chapter): the serving view is an argument, a snapshot supplied
 by the operator. The wire shape of a multi-operation step is the fuse
-envelope's (`docs/uvrr-fuse.md`): the step's operations pack one per
+envelope's (`docs/uvr-fuse.md`): the step's operations pack one per
 consecutive slot, the per-slot eras the fold computed.
 
 The offline handle is the operator tool:
 
 ```sh
-cargo run --bin uvrr-solve -- current.txt target.txt 3
+cargo run --bin uvr-solve -- current.txt target.txt 3
 ```
 
 It reads the two configurations (one `node <id> <weight>` record per line,
@@ -738,7 +738,7 @@ a dead voter vote.
 ### Reconfiguration plans
 
 A plan is the dumb-operator artefact: compute it once, submit it, and the leader
-steps through it while the cluster keeps running normally. `uvrr::plan::Plan`
+steps through it while the cluster keeps running normally. `uvr::plan::Plan`
 is the core's serde-free form, the initial membership (order is succession)
 and one batch of operations per era, in commit order.
 
@@ -763,7 +763,7 @@ refuses, and a declared `target` that is not the configuration the steps reach.
 The leader acceptance rule: the leader rejects any plan whose `initial`
 configuration is not its current committed configuration, membership,
 succession order and weights are all compared, and rejects any step the
-configuration fold refuses (`uvrr::plan::Plan::validate_against`). A plan that
+configuration fold refuses (`uvr::plan::Plan::validate_against`). A plan that
 was legal when computed but has drifted is rejected, not committed; replan
 from the current configuration to the original target.
 
@@ -816,7 +816,7 @@ re-elects, at the very slot the arithmetic moves.
 
 The solver chapter states the plans; this chapter
 states the nomination that rides them. The safety licence for the jump is
-the view-jump lemma, `formal/uvrr-lean/UVRR/ViewJump.lean`: a view may
+the view-jump lemma, `formal/uvr-lean/UVR/ViewJump.lean`: a view may
 jump by more than one during a reconfiguration and agreement is
 unaffected, because no hypothesis of the agreement argument quantifies
 over intermediate ballots; eras may not jump, the rule's adjacency
@@ -847,7 +847,7 @@ enters the new arithmetic directly: the leader under the new
 configuration is `record(era).primary(from + offset)`, the same node the
 old arithmetic elected. The era component is never a claim the message
 carries: it is the fold's own answer. Under the per-slot era law
-(`docs/uvrr-fuse.md` §1) a fused slab spans one era per establishing
+(`docs/uvr-fuse.md` §1) a fused slab spans one era per establishing
 slot, so the run a rider sits in can establish an era several past the
 view the committing advance started from, and a committed nomination
 lands the serving view there in the one published transition — the walk
@@ -909,7 +909,7 @@ from 0, or a `Decrement` to 0.
 
 ### The solver's emission
 
-`uvrr::solve::solve` computes the legal path and `uvrr::solve::fold` emits
+`uvr::solve::solve` computes the legal path and `uvr::solve::fold` emits
 it one step per establishing slot, taking the serving view, the view
 number the leader holds when the plan begins, and naming it in the first
 emitted nomination. The fold walks the running view `v` — the view the
@@ -961,7 +961,7 @@ where the recorded votes hold no quorum the question changes nothing.
 * **Era adjacency.** The bump's era is the establishing run's era. The
   ordinary path establishes one era per committed entry, so the bump
   lands exactly one past the receiver's pre-fold row; the fused slab
-  (`docs/uvrr-fuse.md` §1) establishes one era per establishing slot and
+  (`docs/uvr-fuse.md` §1) establishes one era per establishing slot and
   the walk across them is grounded — every spanned era is established by
   a slot the same advance commits, the clause the transition gate checks.
 * **Weight-zero joins cannot vote.** The nomination moves no weights, and

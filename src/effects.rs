@@ -31,7 +31,7 @@ use crate::ids::{Era, NodeId, OperationId, Slot};
 use crate::message::Message;
 
 /// The leader's verdict on an admin submission
-/// (`docs/uvrr-protocols.md`, the solver chapter): accepted, or rejected with
+/// (`docs/uvr-protocols.md`, the solver chapter): accepted, or rejected with
 /// the named reason. The wire/JSON rendering is the host's perimeter; the
 /// core carries the verdict as data.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -80,7 +80,7 @@ pub enum Effect {
     /// else waits for the host's [`StabilityResult`].
     Persist(PersistenceIntent),
     /// The verdict on a plan submitted over the node's admin ingress
-    /// (`docs/uvrr-protocols.md`, the solver chapter): the host renders it as
+    /// (`docs/uvr-protocols.md`, the solver chapter): the host renders it as
     /// the one JSON response line back to the operator.
     AdminResponse {
         /// The verdict.

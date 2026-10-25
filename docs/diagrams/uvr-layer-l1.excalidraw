@@ -94,14 +94,14 @@
    "updated": 1,
    "link": null,
    "locked": false,
-   "text": "WHAT IT IS\n24 UVRR modules, zero external deps, kernel-checked:\neras/Thm-10, casting vote, Turner Lemma-2 overlap,\nreincarnation-general, agreement, five_safe, fuse",
+   "text": "WHAT IT IS\n24 UVR modules, zero external deps, kernel-checked:\neras/Thm-10, casting vote, Turner Lemma-2 overlap,\nreincarnation-general, agreement, five_safe, fuse",
    "fontSize": 13,
    "fontFamily": 5,
    "textAlign": "left",
    "verticalAlign": "top",
    "baseline": 11,
    "containerId": null,
-   "originalText": "WHAT IT IS\n24 UVRR modules, zero external deps, kernel-checked:\neras/Thm-10, casting vote, Turner Lemma-2 overlap,\nreincarnation-general, agreement, five_safe, fuse",
+   "originalText": "WHAT IT IS\n24 UVR modules, zero external deps, kernel-checked:\neras/Thm-10, casting vote, Turner Lemma-2 overlap,\nreincarnation-general, agreement, five_safe, fuse",
    "lineHeight": 1.25
   },
   {

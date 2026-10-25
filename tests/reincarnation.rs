@@ -1,5 +1,5 @@
 //! Reincarnation: the Crash-Stop-Self-Evict corpus
-//! (`docs/uvrr-protocols.md`, the reincarnation chapter).
+//! (`docs/uvr-protocols.md`, the reincarnation chapter).
 //!
 //! The classes:
 //!
@@ -10,7 +10,7 @@
 //! * **B**, a backup crashed dirty: restart-as-new-identity, the
 //!   `Reincarnation` announcement, the leader's forced sequence, every
 //!   intermediate era quorum-safe, final membership correct (rejoin).
-//! * **D**, the marker transition machine (`docs/uvrr-io-obligations.md`, the boot-gate chapter §2): the EXHAUSTIVE closed
+//! * **D**, the marker transition machine (`docs/uvr-io-obligations.md`, the boot-gate chapter §2): the EXHAUSTIVE closed
 //!   4-copy domain (4⁴ = 256 assignments), 2-of-4 [`uvrr::lifecycle::Marker::Stopped`] ⟺ the clean
 //!   stop, every other assignment bumps, the identity resolved INSIDE the
 //!   working quorum (higher-identity-wins, never across all copies),
@@ -726,7 +726,7 @@ fn d_marker_domain_exhaustive() {
     );
 }
 
-/// The stop path (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3):
+/// The stop path (`docs/uvr-io-obligations.md`, the boot-gate chapter §3):
 /// the stop command writes [`uvrr::lifecycle::Marker::Stopping`] 4x; the
 /// drain, flush WALs and grids, is the HOST's and sits strictly
 /// between the two marker writes; after it `finish_stop` writes

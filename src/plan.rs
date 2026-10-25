@@ -1,6 +1,6 @@
 //! The reconfiguration plan: the artefact the operator computes once, submits,
 //! and the leader steps through while the cluster keeps running normally
-//! (`docs/uvrr-protocols.md`, the solver chapter).
+//! (`docs/uvr-protocols.md`, the solver chapter).
 //!
 //! A [`Plan`] is serde-free: it is the core's type, built from the solver's
 //! schedule ([`crate::solve`]) and replayed by the leader one batch per era.
@@ -116,7 +116,7 @@ impl Plan {
     /// must fold through the ordinary transition gates
     /// ([`crate::configuration::Configuration::apply`]). A plan that was legal when computed but has
     /// drifted is rejected by name, never committed
-    /// (`docs/uvrr-protocols.md`, the solver chapter).
+    /// (`docs/uvr-protocols.md`, the solver chapter).
     pub fn validate_against(&self, current: &Configuration) -> Result<(), PlanRejection> {
         let committed = current.order();
         if self.initial.len() != committed.len()
@@ -174,7 +174,7 @@ pub enum PlanCodecError {
         /// The target the header declared.
         declared: Vec<Member>,
         /// The configuration the steps actually reach
-        /// (`docs/uvrr-protocols.md`, the solver chapter).
+        /// (`docs/uvr-protocols.md`, the solver chapter).
         computed: Vec<Member>,
     },
 }
@@ -204,7 +204,7 @@ impl std::fmt::Display for PlanCodecError {
 #[cfg(feature = "serde")]
 impl std::error::Error for PlanCodecError {}
 
-/// The JSONL wire shapes: the schema of `docs/uvrr-protocols.md`, the solver chapter,
+/// The JSONL wire shapes: the schema of `docs/uvr-protocols.md`, the solver chapter,
 /// one JSON object per line. These types never leak past the codec.
 #[cfg(feature = "serde")]
 mod jsonl {

@@ -1,7 +1,7 @@
 //! The documentation reference contract: every reference a doc comment makes
 //! is mechanically resolved against the documents it names. A reference of
 //! the form `docs/<file>.md` must name a file that exists; a reference of the
-//! form `§N[.M]` must name a section of `docs/uvrr-durability-model.md` (the
+//! form `§N[.M]` must name a section of `docs/uvr-durability-model.md` (the
 //! spec, the default document for a bare `§N`) or of a combined-document
 //! chapter the same comment names ("the reincarnation chapter §6"); a
 //! decision identifier (`S2`, `W1`, `Q1`, `B1`, `G1`) must name an entry of
@@ -28,43 +28,43 @@ struct Chapter {
     sections: BTreeSet<String>,
 }
 
-const COMBINED_FILES: [&str; 2] = ["docs/uvrr-protocols.md", "docs/uvrr-io-obligations.md"];
+const COMBINED_FILES: [&str; 2] = ["docs/uvr-protocols.md", "docs/uvr-io-obligations.md"];
 
 /// The chapters the combined documents must carry, by file, with the heading
 /// prefixes the parser looks for. A chapter rename breaks the registry test.
 const EXPECTED_CHAPTERS: [(&str, &str, &str); 7] = [
     (
-        "docs/uvrr-io-obligations.md",
+        "docs/uvr-io-obligations.md",
         "boot-gate",
-        "## uVRR boot gate:",
+        "## UVR boot gate:",
     ),
     (
-        "docs/uvrr-io-obligations.md",
+        "docs/uvr-io-obligations.md",
         "termination",
-        "## uVRR termination obligations:",
+        "## UVR termination obligations:",
     ),
     (
-        "docs/uvrr-protocols.md",
+        "docs/uvr-protocols.md",
         "reconfiguration-rules",
-        "## uVRR reconfiguration rules:",
+        "## UVR reconfiguration rules:",
     ),
     (
-        "docs/uvrr-protocols.md",
+        "docs/uvr-protocols.md",
         "reincarnation",
-        "## uVRR reincarnation:",
+        "## UVR reincarnation:",
     ),
     (
-        "docs/uvrr-protocols.md",
+        "docs/uvr-protocols.md",
         "rejoin",
-        "## uVRR rejoin gossip and witnesses",
+        "## UVR rejoin gossip and witnesses",
     ),
     (
-        "docs/uvrr-protocols.md",
+        "docs/uvr-protocols.md",
         "solver",
         "## Weighted reconfiguration solver",
     ),
     (
-        "docs/uvrr-protocols.md",
+        "docs/uvr-protocols.md",
         "NOMINATE",
         "## NOMINATE leader assignment",
     ),
@@ -73,7 +73,7 @@ const EXPECTED_CHAPTERS: [(&str, &str, &str); 7] = [
 struct Registry {
     /// Every `docs/*.md` path that exists, as the references name it.
     files: BTreeSet<String>,
-    /// The spec's sections: `5`, `6.1`, ... from `docs/uvrr-durability-model.md`.
+    /// The spec's sections: `5`, `6.1`, ... from `docs/uvr-durability-model.md`.
     spec_sections: BTreeSet<String>,
     /// The decision record's identifiers: `S2`, `W1`, ... from `docs/architecture.md`.
     decisions: BTreeSet<String>,
@@ -227,7 +227,7 @@ fn build_registry(root: &Path) -> Registry {
             files.insert(format!("docs/{name}"));
         }
     }
-    let protocols = read("docs/uvrr-protocols.md");
+    let protocols = read("docs/uvr-protocols.md");
     let mut chapters = BTreeMap::new();
     for (file, slug, prefix) in EXPECTED_CHAPTERS {
         let text = read(file);
@@ -243,9 +243,9 @@ fn build_registry(root: &Path) -> Registry {
     }
     Registry {
         files,
-        spec_sections: parse_spec_sections(&read("docs/uvrr-durability-model.md")),
+        spec_sections: parse_spec_sections(&read("docs/uvr-durability-model.md")),
         decisions: parse_decisions(&read("docs/architecture.md")),
-        rules: parse_rules(&protocols, "## uVRR reconfiguration rules:"),
+        rules: parse_rules(&protocols, "## UVR reconfiguration rules:"),
         citations: parse_citations(&read("docs/references.md")),
         chapters,
     }

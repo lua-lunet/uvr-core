@@ -1,6 +1,6 @@
 # Client-facing deployment: the load-balanced circuit
 
-This document states how client traffic reaches a uVRR cluster in a
+This document states how client traffic reaches a UVR cluster in a
 reference deployment, and how the client table of the 2012 paper lands
 inside the host. The core is sans-IO: it owns no socket, no connection,
 no retry policy, and no client identity. Everything below is host
@@ -102,7 +102,7 @@ outcome unknowable to the caller, per the same section.
 VRR-2012's constraint that a client has at most one outstanding request
 maps, in this deployment, onto the map itself: at the node where the
 connection terminates (the **gateway**,
-`docs/uvrr-application-protocol.md`), there is at most one in-flight
+`docs/uvr-application-protocol.md`), there is at most one in-flight
 entry per client, keyed by the command's identifier. The client's role in the paper (track
 the view, address the primary, deduplicate by request number) dissolves
 into the load balancer plus the host map: the client keeps a TCP socket

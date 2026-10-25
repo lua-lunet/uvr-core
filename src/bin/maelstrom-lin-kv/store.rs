@@ -1,5 +1,5 @@
 //! The bench host's state file: the durable evidence a restart reopens
-//! under (`docs/uvrr-protocols.md`, the reincarnation chapter §2), carried in the host's own
+//! under (`docs/uvr-protocols.md`, the reincarnation chapter §2), carried in the host's own
 //! store.
 //!
 //! # Shape (format 3, bench-internal; no cross-version compatibility)
@@ -501,7 +501,7 @@ impl Store {
     ///
     /// The file cannot be flushed, the stop cannot prove its drain, so
     /// the caller must not write [`uvrr::lifecycle::Marker::Stopped`]
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3).
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3).
     pub fn drain(&mut self) -> Result<(), String> {
         let log = self.log.as_mut().ok_or("drain on an unarmed store")?;
         log.file

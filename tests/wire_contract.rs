@@ -692,7 +692,7 @@ fn tag_match_is_exhaustive_and_discriminants_are_pinned() {
 }
 
 // ---------------------------------------------------------------------------
-// 11. Fuse bodies (`docs/uvrr-fuse.md`, decision W6)
+// 11. Fuse bodies (`docs/uvr-fuse.md`, decision W6)
 // ---------------------------------------------------------------------------
 
 /// The header of a [`uvrr::wire::Tag::Fuse`] whose batch begins at `first_slot`.
@@ -828,7 +828,7 @@ fn fuseok_and_commitbatch_round_trip() {
     }
 }
 
-/// A zero-count envelope is meaningless (`docs/uvrr-fuse.md` §1): a batch
+/// A zero-count envelope is meaningless (`docs/uvr-fuse.md` §1): a batch
 /// names its operations, and naming none is not a batch. Decode of count 0 is
 /// `Malformed` for all three fuse bodies.
 #[test]
@@ -918,7 +918,7 @@ fn fuse_unknown_op_discriminant_is_malformed() {
     }
 }
 
-/// The cache-line-scale claim (`docs/uvrr-fuse.md` §2): a full-cluster
+/// The cache-line-scale claim (`docs/uvr-fuse.md` §2): a full-cluster
 /// reconfiguration is at most seven operations, and the whole envelope,
 /// header included, travels well under a nominal 1300-byte payload. The
 /// codec carries no size constant (W5); this is a property of the encoded

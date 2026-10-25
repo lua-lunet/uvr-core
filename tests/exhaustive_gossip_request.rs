@@ -1,5 +1,5 @@
 //! Exhaustive per-message properties: the rejoin gossip request a node hears
-//! (`docs/uvrr-protocols.md`, the rejoin chapter §2 to §3).
+//! (`docs/uvr-protocols.md`, the rejoin chapter §2 to §3).
 //!
 //! One message over the cross product of the dimensions the handler branches
 //! on: the receiver's role (the leader answers, every other node only

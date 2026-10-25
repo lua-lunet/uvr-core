@@ -8,7 +8,7 @@
 //! the requested era's configuration, and the boot fence never moved the
 //! committed frontier, so a fresh join could never fold its admitting era
 //! and no fresh join converged. The learner acquisition rule
-//! (`docs/uvrr-protocols.md`, the reincarnation chapter §10) closes it with the ordinary state
+//! (`docs/uvr-protocols.md`, the reincarnation chapter §10) closes it with the ordinary state
 //! transfer: the leader serves a member of its current committed
 //! configuration, and the boot-fenced node's own fetch is its qualified
 //! evidence.

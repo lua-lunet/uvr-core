@@ -1,5 +1,5 @@
 //! Exhaustive per-message properties: the [`uvrr::wire::Tag::Fuse`] envelope an acceptor folds
-//! (`docs/uvrr-fuse.md` §1, §3).
+//! (`docs/uvr-fuse.md` §1, §3).
 //!
 //! One message over the cross product of the dimensions the handler branches
 //! on: the envelope's view against the receiver's current view, the

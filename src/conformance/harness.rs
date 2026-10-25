@@ -195,7 +195,7 @@ fn gate_marker_name(marker: Marker) -> &'static str {
     }
 }
 
-/// The harness's [`LifecycleStore`] (`docs/uvrr-io-obligations.md`, the boot-gate chapter §6): plain
+/// The harness's [`LifecycleStore`] (`docs/uvr-io-obligations.md`, the boot-gate chapter §6): plain
 /// marker files in the harness's temporary directory, four copies, one
 /// file each, plus a WAL stub the drain forces. Every read, write, and
 /// drain is recorded on the operation log in order, so a script can assert
@@ -231,7 +231,7 @@ impl TmpGate {
     }
 
     /// The operation log, in order: `read`, `commit:<marker>@<identity>`,
-    /// `drain`. The fixed schedules of `docs/uvrr-io-obligations.md`, the boot-gate chapter §3 assert
+    /// `drain`. The fixed schedules of `docs/uvr-io-obligations.md`, the boot-gate chapter §3 assert
     /// against this.
     #[must_use]
     pub fn ops(&self) -> Vec<String> {
@@ -271,7 +271,7 @@ impl TmpGate {
         };
         // A zero half under a real marker state is a corrupt marker, not
         // an identity: the pair is one-indexed in both halves
-        // (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), so the read refuses rather than
+        // (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), so the read refuses rather than
         // classifies over a pattern no lawful life ever wrote.
         if identity == 0 && marker_line != "-" {
             return Err(std::io::Error::new(
@@ -723,7 +723,7 @@ pub struct Harness {
     gate_logs: Vec<Option<std::rc::Rc<std::cell::RefCell<Vec<String>>>>>,
     /// A reincarnation's deferred latch: the crashed session, held until
     /// the engine's seated observation mints the witness
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3).
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3).
     pending: Vec<Option<Crashed<TmpGate>>>,
     /// Per-node pending fault declarations (`expect_fault`).
     declared_faults: Vec<bool>,
@@ -814,7 +814,7 @@ impl Harness {
     }
 
     /// [`crate::conformance::harness::Harness::with_knobs`] with a statically registered gossip-witness
-    /// list (`docs/uvrr-protocols.md`, the rejoin chapter §4): every
+    /// list (`docs/uvr-protocols.md`, the rejoin chapter §4): every
     /// provisioned node loads `witnesses` at startup. The witnesses
     /// themselves are outside the roster, they are not provisioned here;
     /// a script that wants one to process the stream boots it itself.
@@ -885,7 +885,7 @@ impl Harness {
             .expect("the genesis order 0..n provisions");
             let observer = replica.observer();
             // The first life latches its anchor: `(identity, Joining)` 4x
-            // (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3), so a later crash reads as a
+            // (`docs/uvr-io-obligations.md`, the boot-gate chapter §3), so a later crash reads as a
             // crash, never as a clean stop.
             let dir = gate_root.join(format!("n{index}"));
             let gate = TmpGate::open(dir.clone()).expect("the gate directory opens");
@@ -1515,7 +1515,7 @@ impl Harness {
     }
 
     /// Submits a reconfiguration plan over the node's admin ingress
-    /// (`docs/uvrr-protocols.md`, the solver chapter): the verdict or the
+    /// (`docs/uvr-protocols.md`, the solver chapter): the verdict or the
     /// named refusal is the script's to assert. One step.
     pub fn submit_plan(&mut self, id: NodeId, plan: Plan) -> StepOutcome {
         self.drive(
@@ -1543,7 +1543,7 @@ impl Harness {
     /// Crashes a node: its volatile state dies with it, and the harness's
     /// "disk" records the published progress, the journal, and the
     /// configuration history. The markers are left exactly as they were,
-    /// a crash writes nothing (`docs/uvrr-io-obligations.md`, the boot-gate chapter §1). Deliveries to
+    /// a crash writes nothing (`docs/uvr-io-obligations.md`, the boot-gate chapter §1). Deliveries to
     /// a down node are recorded undeliverable.
     pub fn crash(&mut self, id: NodeId) {
         let index = self.index_of(id);
@@ -1562,7 +1562,7 @@ impl Harness {
         self.record(format!("n={} crash (disk recorded)", id.0));
     }
 
-    /// A controlled halt (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3): the two-round stop
+    /// A controlled halt (`docs/uvr-io-obligations.md`, the boot-gate chapter §3): the two-round stop
     /// driven through the gate, [`crate::lifecycle::Marker::Stopping`] 4x, the drain, [`crate::lifecycle::Marker::Stopped`] 4x,
     /// then the disk records the drained state. This is the only stop
     /// whose restart resumes the same identity.
@@ -1642,7 +1642,7 @@ impl Harness {
     /// The restart routes through the boot gate: the markers must classify
     /// `Clean`, a stopped quorum from a [`crate::conformance::harness::Harness::halt`]. A crashed
     /// marker set refuses loudly (error-on-crashed is the contract,
-    /// `docs/uvrr-io-obligations.md`, the boot-gate chapter §7): the same identity cannot resume a
+    /// `docs/uvr-io-obligations.md`, the boot-gate chapter §7): the same identity cannot resume a
     /// crash.
     pub fn restart_with(&mut self, id: NodeId) -> Result<(), LifecycleRefusal> {
         let index = self.index_of(id);
@@ -1703,7 +1703,7 @@ impl Harness {
         }
     }
 
-    /// The reincarnation restart (§2 of `docs/uvrr-protocols.md`, the reincarnation chapter): the
+    /// The reincarnation restart (§2 of `docs/uvr-protocols.md`, the reincarnation chapter): the
     /// dirty path made concrete. The node that ran as `id` lost its
     /// volatile state and reopened under a NEW identity `new`, same disk,
     /// same journal, new `own`. The new identity is not a member until the
@@ -1713,7 +1713,7 @@ impl Harness {
     /// `Crashed`. The replacement pair is decided by the gate, and the
     /// durable latch DEFERS to the engine's seated observation, the
     /// harness latches automatically on the first step after which
-    /// [`crate::replica::Replica::rejoined`] mints its witness (`docs/uvrr-io-obligations.md`, the boot-gate chapter
+    /// [`crate::replica::Replica::rejoined`] mints its witness (`docs/uvr-io-obligations.md`, the boot-gate chapter
     /// §3).
     ///
     /// Identity is not reused: the identity that crashed is never resumed
@@ -1916,7 +1916,7 @@ impl Harness {
     /// The boot gate's operation log for a node, `read`, `commit:<marker>@<identity>`,
     /// `drain`, in order, from whichever holder rides the gate (the
     /// running session, the deferred crashed session, or nothing). The
-    /// fixed write schedules of `docs/uvrr-io-obligations.md`, the boot-gate chapter §3 assert
+    /// fixed write schedules of `docs/uvr-io-obligations.md`, the boot-gate chapter §3 assert
     /// against this.
     pub fn gate_ops(&self, id: NodeId) -> Vec<String> {
         let index = self.index_of(id);
@@ -1931,7 +1931,7 @@ impl Harness {
     /// `drain` the halt schedule forces strictly between its rounds. The
     /// compliance corpus asserts the protocol's marker states through
     /// this, never the store's raw operation log
-    /// (`docs/uvrr-host-compliance.md` §3): the reads are the host's own
+    /// (`docs/uvr-host-compliance.md` §3): the reads are the host's own
     /// business and carry no marker state, so they are not listed.
     #[must_use]
     pub fn marker_states(&self, id: NodeId) -> Vec<String> {
@@ -1954,7 +1954,7 @@ impl Harness {
     /// Fires every deferred latch whose seated observation has arrived: a
     /// reincarnated node that has reached [`crate::progress::Status::Normal`] at voting weight mints
     /// its witness, and the gate writes the deferred `(new, Joining)` 4x
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3). Called at the end of every step, so
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3). Called at the end of every step, so
     /// no script can forget it.
     fn settle_pending(&mut self) {
         for index in 0..self.nodes.len() {
@@ -1981,7 +1981,7 @@ impl Harness {
         }
     }
 
-    /// Feeds the node's `Input::Reincarnate { old }` (`docs/uvrr-protocols.md`, the reincarnation chapter §4): the
+    /// Feeds the node's `Input::Reincarnate { old }` (`docs/uvr-protocols.md`, the reincarnation chapter §4): the
     /// bumped node announces its pair to the current configuration's
     /// members, the leader acts on it, the backups drop it by name.
     pub fn reincarnate(&mut self, id: NodeId, old: NodeId) -> StepOutcome {

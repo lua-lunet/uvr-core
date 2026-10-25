@@ -4,9 +4,9 @@
 
 ## Abstract
 
-This document defines the state, persistence, recovery, and concurrency boundary for a SANS-I/O implementation of Viewstamped Replication. `VSR-1988` denotes Brian M. Oki and Barbara H. Liskov's paper [*Viewstamped Replication: A New Primary Copy Method to Support Highly-Available Distributed Systems*](https://www.cs.princeton.edu/courses/archive/fall11/cos518/papers/viewstamped.pdf), presented at PODC in August 1988.[^oki-dissertation] `VRR-2012` denotes Barbara Liskov and James Cowling's later paper, [*Viewstamped Replication Revisited*](https://dspace.mit.edu/entities/publication/80846d94-fcd3-40e6-87fb-8d91fe99a5d1), published in 2012. `uvrr-core` implements VRR-2012 only. VSR-1988 is discussed solely to explain the origin and purpose of the VRR-2012 view-change fence.
+This document defines the state, persistence, recovery, and concurrency boundary for a SANS-I/O implementation of Viewstamped Replication. `VSR-1988` denotes Brian M. Oki and Barbara H. Liskov's paper [*Viewstamped Replication: A New Primary Copy Method to Support Highly-Available Distributed Systems*](https://www.cs.princeton.edu/courses/archive/fall11/cos518/papers/viewstamped.pdf), presented at PODC in August 1988.[^oki-dissertation] `VRR-2012` denotes Barbara Liskov and James Cowling's later paper, [*Viewstamped Replication Revisited*](https://dspace.mit.edu/entities/publication/80846d94-fcd3-40e6-87fb-8d91fe99a5d1), published in 2012. `uvr-core` implements VRR-2012 only. VSR-1988 is discussed solely to explain the origin and purpose of the VRR-2012 view-change fence.
 
-**On the word "recovery".** Where this document says *recovery* it names VRR-2012's own §4.3/§6.1 mechanism, quoted as literature about the cited design. uVRR removes it by construction: a controlled halt is not a crash, a controlled start is not a recovery, and a crashed identity returns only through Crash-Stop-Self-Evict reincarnation, reincarnation is not recovery (`docs/uvrr-io-obligations.md`, the boot-gate chapter §1 rules the words; `docs/uvrr-protocols.md`, the reincarnation chapter §1 rules the identities). Wherever uVRR's own path is described, this document says *state transfer*, *clean start*, or *reincarnation*, and says so.
+**On the word "recovery".** Where this document says *recovery* it names VRR-2012's own §4.3/§6.1 mechanism, quoted as literature about the cited design. UVR removes it by construction: a controlled halt is not a crash, a controlled start is not a recovery, and a crashed identity returns only through Crash-Stop-Self-Evict reincarnation, reincarnation is not recovery (`docs/uvr-io-obligations.md`, the boot-gate chapter §1 rules the words; `docs/uvr-protocols.md`, the reincarnation chapter §1 rules the identities). Wherever UVR's own path is described, this document says *state transfer*, *clean start*, or *reincarnation*, and says so.
 
 [^oki-dissertation]: The fuller contemporary treatment is Brian Masao Oki's MIT dissertation and technical report, [*Viewstamped Replication for Highly Available Distributed Systems*](https://publications.csail.mit.edu/lcs/pubs/pdf/MIT-LCS-TR-423.pdf), supervised by Professor Barbara H. Liskov, submitted in May 1988, and issued as MIT/LCS/TR-423 in August 1988.
 
@@ -22,7 +22,7 @@ The core exposes only state and operations required by VRR-2012. Physical layout
 |---|---|
 | `VSR-1988` | Brian M. Oki and Barbara H. Liskov, *Viewstamped Replication: A New Primary Copy Method to Support Highly-Available Distributed Systems*, ACM PODC, 1988. |
 | `VRR-2012` | Barbara Liskov and James Cowling, *Viewstamped Replication Revisited*, MIT-CSAIL-TR-2012-021, 2012. |
-| `uvrr-core` | The Rust implementation under analysis. It is intended to implement VRR-2012. |
+| `uvr-core` | The Rust implementation under analysis. It is intended to implement VRR-2012. |
 
 The phrases “revised VR” and “the revised protocol” are not used without the explicit identifier `VRR-2012`.
 
@@ -63,7 +63,7 @@ Restarting/Joining/Replaying:   current_view is not an authority to participate
 ```
 
 Under Active, the equality is maintained at every instant. A committed
-nomination's commit-time bump (the NOMINATE rule of `docs/uvrr-protocols.md`)
+nomination's commit-time bump (the NOMINATE rule of `docs/uvr-protocols.md`)
 advances `current_view` by committed command and re-selects no history, so
 `retained_view` advances with it on the same transition: after the bump it
 names the view the retained history is served at, and the history's
@@ -214,11 +214,11 @@ The host may record progress, journal changes, and application changes in one wi
 ### 6.1 Event-clock contract and the freshness carrier
 
 `TimedInput.at` is an unsigned 64-bit tick supplied by the host. Nanosecond-resolution time is preferred because normal process scheduling makes accidental reuse unlikely. The core treats the value as opaque and does not convert units.
-Classic VRR-2012 diskless recovery carries freshness in a recovery nonce: the host tick of each recovery event, with a bounded nonce set per attempt and a delayed response counted iff its echoed nonce is still remembered. That carrier exists because a classic diskless restart keeps its identity and has no durable freshness record. uVRR does not perform that exchange: the freshness carrier is the durable identity pair in the boot marker (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), a dirty node bumps its crash counter under the identity law (Crash-Stop-Self-Evict), so freshness survives the crash as durable identity rather than as a nonce set. The tick remains the host's observation metadata (S4) and the `(identity, sequence)` request identity of the acquisition certificates; the classic-VRR nonce rules above are retained here as literature about the classic design they govern.
+Classic VRR-2012 diskless recovery carries freshness in a recovery nonce: the host tick of each recovery event, with a bounded nonce set per attempt and a delayed response counted iff its echoed nonce is still remembered. That carrier exists because a classic diskless restart keeps its identity and has no durable freshness record. UVR does not perform that exchange: the freshness carrier is the durable identity pair in the boot marker (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), a dirty node bumps its crash counter under the identity law (Crash-Stop-Self-Evict), so freshness survives the crash as durable identity rather than as a nonce set. The tick remains the host's observation metadata (S4) and the `(identity, sequence)` request identity of the acquisition certificates; the classic-VRR nonce rules above are retained here as literature about the classic design they govern.
 
 ### 6.2 The drop discipline
 
-Two invariant clauses rule which peer messages the transition refuses. The core refuses a message altogether, never a partial fold: the transition publishes an identity candidate carrying a named `Diagnostic` on the observation (`uvrr::observe::Diagnostic`, the same seqlock record §7 publishes through), changes no state, and emits nothing. A refusal never faults the node; faulting is reserved for impossible local transitions. The named outcomes below are the enumeration as `src/replica/normal.rs` and `src/replica/view_change.rs` name them; the diagnostics for the reconfiguration, fuse, and transfer paths (`InvalidSystemOperation`, `FuseRefusal`, `StaleTransfer`, `MalformedTransfer`) are their own statements and are not repeated here.
+Two invariant clauses rule which peer messages the transition refuses. The core refuses a message altogether, never a partial fold: the transition publishes an identity candidate carrying a named `Diagnostic` on the observation (`uvr::observe::Diagnostic`, the same seqlock record §7 publishes through), changes no state, and emits nothing. A refusal never faults the node; faulting is reserved for impossible local transitions. The named outcomes below are the enumeration as `src/replica/normal.rs` and `src/replica/view_change.rs` name them; the diagnostics for the reconfiguration, fuse, and transfer paths (`InvalidSystemOperation`, `FuseRefusal`, `StaleTransfer`, `MalformedTransfer`) are their own statements and are not repeated here.
 
 **The frontier clause: a message for a slot the commit frontier has fixed is refused.** The value at a committed slot is an invariant of the algorithm, no message may rewrite it, and a slot is assigned once in a legitimate history.
 
@@ -320,7 +320,7 @@ V_g ⌢ V_g
 
 This self-intersection is not implied by `QI ⌢ QII` alone. It is required by this diskless VRR construction because a recovering replica must encounter the volatile evidence that an earlier view was fenced. A quorum policy is therefore not automatically a valid VRR-2012 policy merely because `QI ⌢ QII` holds.
 
-This section describes classic VRR-2012 diskless recovery (its §4.3) as literature, not uVRR: uVRR replaces the diskless recovery overlap with Crash-Stop-Self-Evict reincarnation. A crashed node whose superblocks record an unflushed session reopens under a new incarnation, the leader evicts the old identity through the forced weight sequence (exiting 1 to 0, joining at 0, then 0 to 1), and the new identity rejoins as a weight-0 standby, a **standby** is TigerBeetle's term for its non-voting cluster members (older drafts of this document called it a learner): standby nodes have a zero voting weight so cannot form part of any quorum nor actively participate in the VSR algorithm, so no recovery quorum meets a fence family, and the obligation above governs the classic design only.
+This section describes classic VRR-2012 diskless recovery (its §4.3) as literature, not UVR: UVR replaces the diskless recovery overlap with Crash-Stop-Self-Evict reincarnation. A crashed node whose superblocks record an unflushed session reopens under a new incarnation, the leader evicts the old identity through the forced weight sequence (exiting 1 to 0, joining at 0, then 0 to 1), and the new identity rejoins as a weight-0 standby, a **standby** is TigerBeetle's term for its non-voting cluster members (older drafts of this document called it a learner): standby nodes have a zero voting weight so cannot form part of any quorum nor actively participate in the VSR algorithm, so no recovery quorum meets a fence family, and the obligation above governs the classic design only.
 
 ### 8.4 Weighted quorums
 
@@ -405,7 +405,7 @@ The *leader casting vote* is a pipelining optimisation rather than a safety cond
 
 ### 8.7 Planned extension: Unbounded VSR reconfiguration by voting weights
 
-`uvrr-core` will support **Unbounded VSR**, a non-stop reconfiguration protocol corresponding to David Turner's unbounded-pipelining reconfiguration result (reference 5) but stated in VSR operations, views, and quorum evidence. This section is the normative design target. It is not a claim that the current implementation already supports reconfiguration.
+`uvr-core` will support **Unbounded VSR**, a non-stop reconfiguration protocol corresponding to David Turner's unbounded-pipelining reconfiguration result (reference 5) but stated in VSR operations, views, and quorum evidence. This section is the normative design target. It is not a claim that the current implementation already supports reconfiguration.
 
 #### 8.7.1 Configuration
 
@@ -497,7 +497,7 @@ Together with `R1` instantiated at `e+1`, these are the three consecutive pairwi
 QII_e ⌢ QI_e ⌢ QII_(e+1) ⌢ QI_(e+1)
 ```
 
-The classic diskless-VRR fence/recovery overlap in §8.3 governs classic VRR-2012 diskless recovery, which uVRR replaces with Crash-Stop-Self-Evict reincarnation; it does not bind uVRR.
+The classic diskless-VRR fence/recovery overlap in §8.3 governs classic VRR-2012 diskless recovery, which UVR replaces with Crash-Stop-Self-Evict reincarnation; it does not bind UVR.
 
 **The refusal witness.** When the gate refuses a configuration or a transition, the refusal is never bare: it carries a witness naming the smallest counterexample, an inclusion-minimal disjoint quorum pair. Minimal unconditionally, with no monotonicity assumption on the quorum predicate: the enumeration runs subsets in increasing size, so the first pair found has no proper subset that is itself a counterexample. The witness is protocol-visible, it is the content of the refusal the host observes, so its minimality is a protocol invariant stated here, not an implementation courtesy. Cost: the valid path is the `2^N` subset scan of the named obligations; the refusal path's witness enumeration is bounded by `3^N` predicate evaluations, at `N <= 16` well under a second, and a refusal is a terminal preflight event, not steady state.
 
@@ -646,7 +646,7 @@ After restarting, `R` cannot participate in any lower view. Therefore the `Start
 
 Persisting only the view fence does not recover accepted operations, commitment, application state, or application completions. A replica which recovers only that fence remains unable to participate until the remaining state has been restored or recovered.
 
-This mechanism is not a selectable `uvrr-core` protocol mode. `uvrr-core` always retains the VRR-2012 `StartViewChange` exchange. A host may persist progress for recovery, but that persistence does not permit the core to omit or abbreviate the VRR-2012 view-change protocol.
+This mechanism is not a selectable `uvr-core` protocol mode. `uvr-core` always retains the VRR-2012 `StartViewChange` exchange. A host may persist progress for recovery, but that persistence does not permit the core to omit or abbreviate the VRR-2012 view-change protocol.
 
 ### 9.4 Three- and five-replica groups
 
@@ -656,7 +656,7 @@ The VRR-2012 quorum-memory failure envelope is determined by group size:
 - with five replicas, quorum memory tolerates two failed or recovering replicas;
 - survival of loss beyond `f` volatile replica states requires additional durable recovery state, not only a view number.
 
-The narrower operational envelope of a three-replica group may make local persistence attractive as a host recovery policy. It does not make VRR-2012 unsafe within its stated failure model, and it does not change the view-change sequence implemented by `uvrr-core`.
+The narrower operational envelope of a three-replica group may make local persistence attractive as a host recovery policy. It does not make VRR-2012 unsafe within its stated failure model, and it does not change the view-change sequence implemented by `uvr-core`.
 
 ### 9.5 `StartViewChange` is not a pre-vote
 
@@ -677,13 +677,13 @@ higher-view evidence
     -> install state only from protocol-qualified evidence
 ```
 
-VRR-2012 states that a replica receiving a normal message from a later view performs state transfer before processing it. The current `uvrr-core` implementation instead ignores higher-view `Prepare` and `Commit` messages because their guards require exact view equality. Only `StartViewChange`, qualifying `DoViewChange`, and `StartView` paths advance `Replica.view`.
+VRR-2012 states that a replica receiving a normal message from a later view performs state transfer before processing it. The current `uvr-core` implementation instead ignores higher-view `Prepare` and `Commit` messages because their guards require exact view equality. Only `StartViewChange`, qualifying `DoViewChange`, and `StartView` paths advance `Replica.view`.
 
 A rejection or NACK containing the higher view can accelerate convergence. It is a liveness optimisation, not part of the quorum-intersection safety argument.
 
 ## 11. Application boundary
 
-`uvrr-core` orders opaque operations. It does not model clients, sockets, retries, deduplication, forwarding, or replies.
+`uvr-core` orders opaque operations. It does not model clients, sockets, retries, deduplication, forwarding, or replies.
 
 An operation is:
 
@@ -831,7 +831,7 @@ folds the schedule slot by slot. Accepting a Phase2 at a slot promises that
 slot's ballot even when the Phase1 was lost, so the acceptor ends promised at
 the tail ballot, the slab's last; per-op safety is the ordinary accept
 path and no new quorum family, configuration state, or era rule exists. The
-full statement is `docs/uvrr-fuse.md`.
+full statement is `docs/uvr-fuse.md`.
 
 Its load-bearing property is the atomic batch: the envelope is a single
 checksummed datagram of cache-line scale, so loss or interruption inside a
@@ -864,7 +864,7 @@ The current code contains:
 - separate accepted, committed, and executed frontiers;
 - explicit `Restarting`, `Joining`, and `Replaying` statuses;
 - host strategies for the journal (`Journal`/`JournalView`, with the segmented in-memory implementation) and an explicit stability-completion boundary (`Stability`) gating dependent effects;
-- the lifecycle constructors behind the boot gate (`uvrr::lifecycle`): `provision` establishes the genesis configuration and joins fenced `Joining`; `join` enters a fresh identity over the shared genesis prefix; `resume` continues a vouched clean stop and `reincarnate` replaces a crashed identity, both later lives start fenced `Restarting`;
+- the lifecycle constructors behind the boot gate (`uvr::lifecycle`): `provision` establishes the genesis configuration and joins fenced `Joining`; `join` enters a fresh identity over the shared genesis prefix; `resume` continues a vouched clean stop and `reincarnate` replaces a crashed identity, both later lives start fenced `Restarting`;
 - the host-forced view change (`Input::AdminForceView`, §14.2): an ordinary fence/evidence/install pipeline driven from the host's say-so, never a state install from it, the arm a post-genesis cold start's first fence goes through (§5), the boot fence never self-arming from persisted knowledge;
 - the host-supplied `u64` event tick on every input, serving the classic recovery-nonce role (§6.1, S4);
 - the higher-view normal-message state-transfer behaviour specified by VRR-2012.

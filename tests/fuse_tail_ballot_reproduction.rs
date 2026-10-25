@@ -1,6 +1,6 @@
 //! The slab's per-slot ballot sequence: the reconfiguration law's pin.
 //!
-//! The slab assert `docs/uvrr-fuse.md` §3 puts on the acceptor before it
+//! The slab assert `docs/uvr-fuse.md` §3 puts on the acceptor before it
 //! folds a slab is `tail_ballot >= head_ballot && head_ballot >=
 //! current_promise`, strict exactly when the slab spans an era boundary,
 //! where `tail_ballot` is the ballot of the slab's final packed slot,

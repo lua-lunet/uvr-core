@@ -1,4 +1,4 @@
-//! The [`uvrr::wire::Tag::Fuse`] acceptor (`docs/uvrr-fuse.md` §3): one envelope,
+//! The [`uvrr::wire::Tag::Fuse`] acceptor (`docs/uvr-fuse.md` §3): one envelope,
 //! one slab of consecutive slots, each at its own ballot,
 //! one atomic batch. Only the wire shape changes, so every assertion
 //! here runs through the ordinary accept perimeter's observables: the
@@ -40,7 +40,7 @@ fn current_view() -> Ballot {
 }
 
 /// A [`uvrr::wire::Tag::Fuse`] envelope from the primary carrying `ops`, whose batch begins at
-/// `first_slot` (`docs/uvrr-fuse.md` §1).
+/// `first_slot` (`docs/uvr-fuse.md` §1).
 fn fuse_envelope(first_slot: Slot, ops: Vec<SystemOperation>) -> Message {
     Message {
         header: Header {
@@ -80,7 +80,7 @@ fn valid_fuse_is_accepted_as_a_whole() {
     h.bootstrap();
 
     // The schedule: `[Join(new), Increment(new)]`, the shape of the
-    // five-node replacement's second batch (`docs/uvrr-protocols.md`, the reincarnation chapter
+    // five-node replacement's second batch (`docs/uvr-protocols.md`, the reincarnation chapter
     // §5), legal under R1–R15 for the fresh three-node cluster: `n(3)` is
     // absent, so the join inserts a learner at the succession end and the
     // increment promotes it inside the next era. Two ops, two era
@@ -388,11 +388,11 @@ fn assert_journal_unchanged_and_refused(h: &Harness, id: NodeId) {
 // ---------------------------------------------------------------------------
 
 /// The 3-node two-step reincarnation shape
-/// (`docs/uvrr-protocols.md`, the reincarnation chapter §5, the weight-1 row) submitted as an
+/// (`docs/uvr-protocols.md`, the reincarnation chapter §5, the weight-1 row) submitted as an
 /// operator plan: the crossing batch `[Decrement(old), Join(new), Nominate]`
 /// and the promotion batch `[Increment(new), Leave(old), Nominate]`, each
 /// spanning one era per establishing slot, the riders keeping the leader
-/// stable across the slab (`docs/uvrr-fuse.md` §1: the nomination rides
+/// stable across the slab (`docs/uvr-fuse.md` §1: the nomination rides
 /// with the era the slot establishes). The rider arithmetic is the
 /// solver's: `from` the running view, `offset` the least positive jump
 /// re-electing the serving leader under the step's own succession.
@@ -429,7 +429,7 @@ fn reincarnation_shape_plan() -> Plan {
 
 /// A one-step plan whose establishing batch packs two establishing
 /// operations and the nomination rider: the learner join and its
-/// promotion, one era per establishing slot (`docs/uvrr-fuse.md` §1). The
+/// promotion, one era per establishing slot (`docs/uvr-fuse.md` §1). The
 /// rider's arithmetic: four voters after the promotion, so the least
 /// positive jump from view 0 re-electing the leader is 4.
 fn join_and_promote_step() -> Plan {
@@ -649,7 +649,7 @@ fn fuseok_majority_commits_every_slot_and_emits_commitbatch() {
 //    on the first message in batch and telescopes (§2, §4 step 3).
 // ---------------------------------------------------------------------------
 
-/// THE PIN (`docs/uvrr-fuse.md` §2): majority is computed on the first
+/// THE PIN (`docs/uvr-fuse.md` §2): majority is computed on the first
 /// message in batch. A [`uvrr::wire::Tag::FuseOk`] is one atomic vote vouching for the whole
 /// envelope, a node processes the full datagram before reading any other
 /// message, so a partial or staggered acks body is wire evidence the
@@ -809,10 +809,10 @@ fn fuseok_is_one_atomic_vote_telescoping_the_batch() {
 // ---------------------------------------------------------------------------
 // 8. The paced commit: what one commit transition folds when the packed
 //    schedule spans more eras than the serving view can carry
-//    (`docs/uvrr-fuse.md` §4 step 4).
+//    (`docs/uvr-fuse.md` §4 step 4).
 // ---------------------------------------------------------------------------
 
-/// THE PACED COMMIT (`docs/uvrr-fuse.md` §4 step 4). A riderless slab
+/// THE PACED COMMIT (`docs/uvr-fuse.md` §4 step 4). A riderless slab
 /// carries no nomination, so nothing redeems the second era's advance in
 /// the committing transition: the paced fold commits the head era and
 /// defers the tail, the tail committing once the durable view has walked
@@ -1208,7 +1208,7 @@ fn client_operations_are_not_blocked_by_the_fuse_round() {
 
 // ---------------------------------------------------------------------------
 // 11. The full forced schedule, end to end through the fuse path (§8 of
-//     `docs/uvrr-fuse.md`): the canonical two-era 3-node split and the
+//     `docs/uvr-fuse.md`): the canonical two-era 3-node split and the
 //     six-era 5-node weighted sequence, submitted as one operator plan,
 //     one round trip per era, the era table and the final configuration
 //     asserted at every row.
@@ -1329,7 +1329,7 @@ fn view_change_between_eras(h: &mut Harness, leader: NodeId, target: Ballot, liv
     h.assert_safety();
 }
 
-/// The two-step 3-node canonical split (`docs/uvrr-protocols.md`, the reincarnation chapter §5)
+/// The two-step 3-node canonical split (`docs/uvr-protocols.md`, the reincarnation chapter §5)
 /// driven end to end through the fuse path: one Fuse per backup per step,
 /// the acks telescoping, the commits firing per step, and the final
 /// configuration the plan's steps reach. Under the per-slot era law each
@@ -1480,7 +1480,7 @@ fn full_forced_reincarnation_schedule_travels_the_fuse_path_on_three_nodes() {
 }
 
 /// The 5-node weighted sequence
-/// (`docs/uvrr-protocols.md`, the reincarnation chapter §5, rules §6) driven end to end through
+/// (`docs/uvr-protocols.md`, the reincarnation chapter §5, rules §6) driven end to end through
 /// the fuse path under the per-slot era law: the solitary scaling batches
 /// travel as ordinary establishing [`uvrr::wire::Tag::Prepare`]s and their era
 /// boundaries are crossed by the host's view changes (R13 rides no rider);

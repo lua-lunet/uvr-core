@@ -839,7 +839,7 @@ fn five_node_replacement_completes_all_six_eras_after_leader_crash() {
         h.deliver_all();
         // The host's steady state: the leader ticks every cycle. The armed
         // reincarnation machine proposes the next forced step on the tick
-        // (§5, §8 of `docs/uvrr-protocols.md`, the reincarnation chapter); the prechecks make the
+        // (§5, §8 of `docs/uvr-protocols.md`, the reincarnation chapter); the prechecks make the
         // tick an inert transition whenever a step is still in flight.
         h.tick(leader);
         h.deliver_all();
