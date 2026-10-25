@@ -1,0 +1,30 @@
+[project]
+docs_dir = "src"
+site_name = "uvrr-core"
+site_description = "Unbounded Viewstamped Replication Revisited (uVRR) as an embeddable replication core: FFI-friendly and sans-I/O."
+site_author = "Simon Massey"
+
+nav = [
+  { "Overview" = "index.md" },
+  { "Architecture" = "architecture.md" },
+  { "Protocols" = "uvrr-protocols.md" },
+  { "Fuse" = "uvrr-fuse.md" },
+  { "Durability Model" = "uvrr-durability-model.md" },
+  { "I/O Obligations" = "uvrr-io-obligations.md" },
+  { "Host Compliance" = "uvrr-host-compliance.md" },
+  { "Application Protocol" = "uvrr-application-protocol.md" },
+  { "Clients" = "clients.md" },
+]
+
+site_url = "https://lua-lunet.github.io/uvrr-core/"
+repo_url = "https://github.com/lua-lunet/uvrr-core"
+repo_name = "lua-lunet/uvrr-core"
+
+copyright = """
+Copyright © 2026 Simon Massey
+"""
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" }
+]

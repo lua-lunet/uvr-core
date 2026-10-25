@@ -1,0 +1,57 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["zensical"]
+# ///
+
+"""Publish the repository documentation.
+
+Every page is the repository file it publishes: the site never forks a
+document, and docs/src is generated here on every build. Only links that
+leave the published page set are rewritten, so the tree stays the single
+source of the words.
+"""
+
+import shutil
+import subprocess
+from pathlib import Path
+
+REPO = "https://github.com/lua-lunet/uvrr-core"
+
+doc_dir = Path(__file__).resolve().parent
+src_dir = doc_dir / "src"
+src_dir.mkdir(exist_ok=True)
+
+pages = {
+    "index.md": "../README.md",
+    "architecture.md": "architecture.md",
+    "uvrr-protocols.md": "uvrr-protocols.md",
+    "uvrr-fuse.md": "uvrr-fuse.md",
+    "uvrr-durability-model.md": "uvrr-durability-model.md",
+    "uvrr-io-obligations.md": "uvrr-io-obligations.md",
+    "uvrr-host-compliance.md": "uvrr-host-compliance.md",
+    "uvrr-application-protocol.md": "uvrr-application-protocol.md",
+    "clients.md": "clients.md",
+}
+
+rewrites = {
+    # A chapter that lives on the site keeps a relative link into the book.
+    "](docs/uvrr-protocols.md)": "](uvrr-protocols/)",
+    # Repository material outside the published set links to GitHub.
+    "](formal/README.md)": f"]({REPO}/blob/main/formal/README.md)",
+    "](../study/weighted-reachability/README.md)":
+        f"]({REPO}/blob/main/study/weighted-reachability/README.md)",
+}
+
+for page, source in pages.items():
+    text = (doc_dir / source).read_text()
+    for old, new in rewrites.items():
+        text = text.replace(old, new)
+    (src_dir / page).write_text(text)
+
+figures = src_dir / "diagrams"
+figures.mkdir(parents=True, exist_ok=True)
+for name in ("uvrr-boot-gate-states.svg", "uvrr-boot-gate-sequence.svg"):
+    shutil.copy2(doc_dir / "diagrams" / name, figures / name)
+
+subprocess.run(["zensical", "build"], cwd=doc_dir, check=True)
