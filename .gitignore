@@ -41,3 +41,9 @@ docs/slides/*.pdf
 __pycache__/
 .idea/
 .kg/
+
+# Generated documentation site: docs/docs builds docs/src from the repo
+# files and zensical renders it into docs/site. The words live in the
+# repo files; neither directory is committed.
+docs/src/
+docs/site/
