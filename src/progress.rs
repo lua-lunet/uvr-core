@@ -41,7 +41,7 @@
 //! fault and the replica refuses all further input (§5 invariant 5, §12's
 //! `Indeterminate persistence result -> Faulted`). Re-entering the protocol is a
 //! host lifecycle event, a controlled start over vouched durable state, or
-//! reincarnation after a crash (`docs/uvrr-io-obligations.md`, the boot-gate chapter §1: a start is not a
+//! reincarnation after a crash (`docs/uvr-io-obligations.md`, the boot-gate chapter §1: a start is not a
 //! recovery), not a state transition the core performs on itself.
 //!
 //! `status` is process control as well as protocol state. A reopened node that has
@@ -375,7 +375,7 @@ impl Progress {
     /// `current >= retained`. The fenced entry states carry no relation.
     ///
     /// The relation is honoured at every transition: a nomination's
-    /// commit-time bump (`docs/uvrr-protocols.md`, the NOMINATE chapter)
+    /// commit-time bump (`docs/uvr-protocols.md`, the NOMINATE chapter)
     /// publishes the bumped view as current and retained on the same
     /// published transition, so a [`Status::Normal`] node sits at equality after the
     /// bump exactly as after an install. Serving past the retained view

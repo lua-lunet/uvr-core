@@ -442,7 +442,7 @@ fn rule2_view_succession() {
 /// [`uvrr::wire::Tag::StartView`], [`uvrr::wire::Tag::NewState`]), or when a committed
 /// nomination's commit-time bump advances the serving view and §1.3's equality
 /// under `Normal` joins `retained` and `current` on the same transition
-/// (`docs/uvrr-protocols.md`, the NOMINATE chapter). The bump re-selects no
+/// (`docs/uvr-protocols.md`, the NOMINATE chapter). The bump re-selects no
 /// history, so no input kind can carry a provenance lie through it.
 #[test]
 fn rule3_retained_changes_on_reselection_or_the_nomination_bump() {

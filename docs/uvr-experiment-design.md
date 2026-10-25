@@ -1,4 +1,4 @@
-# uVRR experiment design: advisory-lock cluster under Crash-Stop-Reincarnation
+# UVR experiment design: advisory-lock cluster under Crash-Stop-Reincarnation
 
 > **Placeholder notation.** `X.XX` / `XX.X` are latency placeholders showing
 > the significant figures and decimal places the run will report (two decimals
@@ -18,7 +18,7 @@ implementation's.
 
 | Component | Role |
 |---|---|
-| `uvrr-core` | The sans-IO VRR core. One total function; the host owns time, transport, storage, packetization, and naming. The adapter instantiates `Replica<SegmentedLog, WeightedMajority>` running `Stability::Volatile`: protocol state lives in quorum memory, not local storage. |
+| `uvr-core` | The sans-IO VRR core. One total function; the host owns time, transport, storage, packetization, and naming. The adapter instantiates `Replica<SegmentedLog, WeightedMajority>` running `Stability::Volatile`: protocol state lives in quorum memory, not local storage. |
 | Rust advisory-lock adapter | Owns the lock state machine, the tick clock, exactly-once reply correlation by `message_id`, and the durable recovery nonce. Executes only committed lock commands. |
 | Teal/Lunet service process | `lunet-run build/server.lua`. Owns the TCP client endpoint (newline-delimited JSON), the UDP peer sockets, peer source validation, and forwarding. |
 | LAL Peer Protocol | The service's raw-UDP framing and forwarding layer: envelope `\0LUNET_ADVISORY_LOCK_PEER\0` + kind + membership fingerprint + payload. The fingerprint is the first 16 lowercase hex characters of SHA-256 over the validated lexical member list. |
@@ -86,7 +86,7 @@ node take to rejoin serving after reincarnation?
 
 **Variables.**
 
-- Node killed: one **voting** node that is **not** the uVRR leader, rotated
+- Node killed: one **voting** node that is **not** the UVR leader, rotated
   across all non-leader voting nodes.
 - Traffic: continuous `SET`/`BUMP`/`GET` lock traffic from competing clients at
   the 100 ms lease cadence, throughout.
@@ -98,7 +98,7 @@ node take to rejoin serving after reincarnation?
 `normal`, leader serving); kill the selected node's process
 (Crash-Stop: volatile state lost, the node is by construction a different node
 on reopen); the cluster continues serving at quorum; the killed node bumps its
-crash counter under the identity law (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), rejoins as
+crash counter under the identity law (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), rejoins as
 a weight-0 member, and is walked back to voting
 weight by the leader's forced reconfiguration sequence; the iteration ends when
 the reincarnated node is again a voting, serving replica.
@@ -216,7 +216,7 @@ unchanged; the environment differs (§12). All values `xxxx`.
 segments, and what does the classic diskful barrier add on identical hardware
 in the same run?
 
-**The design claim.** uVRR failover costs suspicion floor + 2 RTT + 0
+**The design claim.** UVR failover costs suspicion floor + 2 RTT + 0
 flushes: the StartViewChange dissemination is one RTT, the DoViewChange
 collection is pipelined with it (zero extra RTT when the messages cross),
 and the StartView installation is one RTT. The classic diskful alternative
@@ -228,7 +228,7 @@ primary may serve installed state.
 the demonstration performs one 4 KiB write + `fsync` **outside** the
 algorithm, before the fenced node emits its view-change traffic, and again
 before the new primary answers StartView. The build never touches the core:
-no uVRR code is made unsafe, and nothing is rewritten to resemble the
+no UVR code is made unsafe, and nothing is rewritten to resemble the
 compared systems; the rig prices their barrier by adding its cost on our
 critical path, at the points where VSR-1988/VRR must write to be safe.
 

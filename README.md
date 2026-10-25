@@ -1,4 +1,4 @@
-# Unbounded Viewstamped Replication Revisited (uVRR)
+# Unbounded Viewstamped Replication Revisited (UVR)
 
 A **sans-io** [Viewstamped Replication Revisited](https://dspace.mit.edu/server/api/core/bitstreams/9f8c52b3-ea46-4fde-9dc9-354ed6d9c7d9/content)
 core library in Rust, with unbounded cluster reconfigurations, that replaces
@@ -20,12 +20,12 @@ Sans-io means the whole protocol is a state machine: you hand a replica an input
 and drain the outputs it produced. No sockets, no threads, no async runtime, no
 callbacks. The host owns transport, timers, and durability.
 
-```rust
-use uvrr::effects::Stability;
-use uvrr::ids::{NodeId, Operation, OperationId, Tick};
-use uvrr::journal::{Journal, SegmentedLog};
-use uvrr::quorum::WeightedMajority;
-use uvrr::replica::{Input, Replica, TimedInput, ViewChangeKnobs};
+```rust ignore
+use uvr::effects::Stability;
+use uvr::ids::{NodeId, Operation, OperationId, Tick};
+use uvr::journal::{Journal, SegmentedLog};
+use uvr::quorum::WeightedMajority;
+use uvr::replica::{Input, Replica, TimedInput, ViewChangeKnobs};
 
 let mut replica = Replica::provision(
     NodeId(0),
@@ -127,7 +127,7 @@ on every runner rather than only where the cypher happens to exist.
 ### The compliance corpus
 
 The protocol's obligations are a corpus of test cases stated as data
-(`docs/uvrr-host-compliance.md`), replayed in process by the reference
+(`docs/uvr-host-compliance.md`), replayed in process by the reference
 runner. The committed corpus is generated from the reference behaviour:
 `make corpus-export` regenerates it, and the sync gate fails when the
 committed bytes drift from what the reference produces.
@@ -176,7 +176,7 @@ Or manually:
 
 ```bash
 make docker-build
-docker run --rm -e NODES=5 -e TIME_LIMIT=180 -e RATE=20 -e INTERVAL=10 uvrr-core-maelstrom test-all
+docker run --rm -e NODES=5 -e TIME_LIMIT=180 -e RATE=20 -e INTERVAL=10 uvr-core-maelstrom test-all
 ```
 
 See `Dockerfile.maelstrom` for the build definition.

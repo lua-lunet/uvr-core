@@ -1,4 +1,4 @@
-# uVRR references
+# UVR references
 
 The external works the documents and the code cite, in one place, under
 stable short identifiers. A citation of the form `[VR-2012]` in a document
@@ -77,7 +77,7 @@ operator and the quorum-overlap chain. 2020.
 
 ## [UVRR-2026]
 
-S. Massey. *Viewstamped Replication Revisited*: the uVRR motivation and the
+S. Massey. *Viewstamped Replication Revisited*: the UVR motivation and the
 TigerBeetle-style durability framing. 2026.
 <https://simbo1905.wordpress.com/2026/08/12/viewstamped-replication-revisited/>
 

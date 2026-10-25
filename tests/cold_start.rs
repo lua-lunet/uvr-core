@@ -30,7 +30,7 @@
 //!    then n(1) starts; both tick in lockstep rounds. The pin: a leader is
 //!    elected, a first value commits, both apply.
 //! 2. **Post-genesis cold restart through the marker machine**
-//!    (`docs/uvrr-io-obligations.md`, the boot-gate chapter §2): committed normal
+//!    (`docs/uvr-io-obligations.md`, the boot-gate chapter §2): committed normal
 //!    operations past the genesis plus one committed reconfiguration era,
 //!    then the HOST performs the controlled stop of each node,
 //!    `begin_stop`, the drain, `finish_stop`, and the boot's quorum read
@@ -45,7 +45,7 @@
 //!    fence/evidence/install pipeline finishes the restart: a leader is
 //!    elected at/beyond the folded era, a NEW value commits, both apply.
 //!    There is NO `AdminForceView` anywhere: the tick does the work, the
-//!    old cold-start "wedge" was a test's misunderstanding of uVRR, and
+//!    old cold-start "wedge" was a test's misunderstanding of UVR, and
 //!    under the marker machine it does not exist.
 //! 3. **The crash-shape Joining pin**: a node restarted through the
 //!    machine with a NON-stopped marker set, the markers its boot wrote,
@@ -165,7 +165,7 @@ fn copies(marker: Marker, identity: u32) -> SuperblockCopies {
     }
 }
 
-/// The HOST's controlled stop of one node (`docs/uvrr-io-obligations.md`,
+/// The HOST's controlled stop of one node (`docs/uvr-io-obligations.md`,
 /// the boot-gate chapter §3): `begin_stop` (the node
 /// has stopped sending, no disk flush sits on the protocol's hot path),
 /// the drain (the host flushes WALs and grids, strictly between the two

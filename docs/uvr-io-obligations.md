@@ -1,4 +1,4 @@
-# uVRR I/O obligations: what every host owes a starting and a stopping replica
+# UVR I/O obligations: what every host owes a starting and a stopping replica
 
 The host's durability obligations in one place. The library is sans-I/O: it
 owns the protocol and the marker state machine; the host owns the event
@@ -9,9 +9,9 @@ every host owes an embedded replica at shutdown. Each chapter keeps its own
 section numbering: a reference of the form "the boot-gate chapter §5" names
 a section within that chapter.
 
-## uVRR boot gate: what every host owes a starting replica
+## UVR boot gate: what every host owes a starting replica
 
-uVRR is a sans-I/O library: the host owns the event loop, the wire, and the
+UVR is a sans-I/O library: the host owns the event loop, the wire, and the
 disk (the termination chapter). Termination's dual is the boot
 gate. Before a starting process may take its first message off the wire, the
 host must answer one question from durable state alone: **did the previous
@@ -26,8 +26,8 @@ unsafe, full stop.
   Nothing was lost; nothing needs recovering.
 - A **controlled start** is not a recovery. A process booting over a vouched
   durable state continues that state; no recovery protocol runs.
-- **Resume** names nothing in uVRR for a crashed identity. The resumption of a
-  crashed identity is the unrepresentable case (`docs/uvrr-protocols.md`, the
+- **Resume** names nothing in UVR for a crashed identity. The resumption of a
+  crashed identity is the unrepresentable case (`docs/uvr-protocols.md`, the
   reincarnation chapter §1): a
   crash is final for the protocol identity, and the process returns through
   crash-stop reincarnation, never through recovery. The constructor called
@@ -45,7 +45,7 @@ crashed:   Crash → Stop → Reincarnate → Run → Halt → …
 `Run → Halt → Run` carries no protocol event at all: the cluster served a
 quorum throughout, and the returning node re-synchronises in-cluster exactly
 as though a network partition had healed. `Crash → … → Reincarnate` is the
-reconfiguration path of `docs/uvrr-protocols.md` (the reincarnation chapter).
+reconfiguration path of `docs/uvr-protocols.md` (the reincarnation chapter).
 
 ### 2. Why three marker states
 
@@ -95,7 +95,7 @@ now separate. The identity write is paid at the boundary, before any
 emission: the boot increments the crash counter, commits the bumped pair,
 and only then speaks (§5). The state flush is not paid at the boundary:
 the process finds the cluster, catches up, and rejoins first
-(`docs/uvrr-protocols.md`, the rejoin chapter §2); the `RUNNING` latch write is
+(`docs/uvr-protocols.md`, the rejoin chapter §2); the `RUNNING` latch write is
 deferred until the rejoin completes. A second crash before the deferred
 latch still reads no `FLUSHED` quorum and classifies crashed again, and
 because the bumped identity was already flushed, the second life increments
@@ -157,7 +157,7 @@ them; the deferred `RUNNING` latch and the state flush remain off the
 boundary exactly as §3 argues.
 
 The gate rules two roles, once. A pure witness is a passive data sink
-outside the roster (`docs/uvrr-protocols.md`, the rejoin chapter §3): it owes the
+outside the roster (`docs/uvr-protocols.md`, the rejoin chapter §3): it owes the
 boot gate nothing, no identity, no latch, no announcements. A weight-0
 member is inside the roster, a learner and not an acceptor, and it owes the
 boot gate everything, the identity law of this section included. The latch
@@ -165,7 +165,7 @@ mints at the engine's seated observation; for a weight-0 member that
 observation is `Normal` at weight 0, which is sound because a weight-0
 member is invisible to every majority. The ruling is discharged in the
 formalization as `IdentityLaw.weight0_majority_irrelevant`
-(`formal/uvrr-lean/`).
+(`formal/uvr-lean/`).
 
 ### 6. The construction the schedules assume
 
@@ -182,9 +182,9 @@ the termination chapter §4: a single `fsync`ed flag file is not
 reliable enough (Pillai et al., OSDI 2014; Chidambaram et al., SOSP 2013),
 which is why the marker is a quorum of copies and not a flag.
 
-### 7. The crate contract: `uvrr::lifecycle`
+### 7. The crate contract: `uvr::lifecycle`
 
-The crate owns the machine; the host owns the writes. `uvrr::lifecycle`
+The crate owns the machine; the host owns the writes. `uvr::lifecycle`
 ships the marker state machine, the quorum-read classification, and a
 **typestate driver** whose types fix the write schedules of §3, a
 transition called out of order has no type to be called on.
@@ -247,21 +247,21 @@ clean one, error-on-crashed is the contract
 
 ### Figures
 
-- [Figure 1, the marker state machine](diagrams/uvrr-boot-gate-states.svg):
+- [Figure 1, the marker state machine](diagrams/uvr-boot-gate-states.svg):
   the three states, the transition that writes each, and the crash edges
   that write nothing.
-- [Figure 2, the three boot classifications](diagrams/uvrr-boot-gate-sequence.svg):
+- [Figure 2, the three boot classifications](diagrams/uvr-boot-gate-sequence.svg):
   clean start, controlled halt and start, and the dirty fast start with its
   deferred latch.
 
-## uVRR termination obligations: what every host owes an embedded replica
+## UVR termination obligations: what every host owes an embedded replica
 
-uVRR is a sans-I/O library embedded through an FFI boundary into any host
+UVR is a sans-I/O library embedded through an FFI boundary into any host
 runtime (a Lua runtime, a Zig process, a Rust service). The library owns the
 protocol; the host owns the event loop, the wire, and the disk. Termination
 is therefore a contract between the two: the library defines the obligations,
 and every future host application, an unbounded set, must meet them to
-embed uVRR safely. The obligations are recorded here as the formal contract.
+embed UVR safely. The obligations are recorded here as the formal contract.
 The same requirement is raised with the reference host runtime as
 embedding contract, which is raised with the reference host runtime by
 its tracker. Termination's dual, the classification of a start as
@@ -288,7 +288,7 @@ because a receiver cannot tell "never sent" from "lost on the wire". The host
 must not let the desirable obligation delay the mandatory one.
 
 The mandatory obligation is the termination dual of the restart rule in
-`docs/uvrr-protocols.md` (the reincarnation chapter): a clean stop is a
+`docs/uvr-protocols.md` (the reincarnation chapter): a clean stop is a
 protocol-visible event, and what
 makes it clean is that the wire is closed before the state is declared final.
 

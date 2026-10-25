@@ -1,12 +1,12 @@
 //! The compliance suite's executor: the abstract host interface of
-//! `docs/uvrr-host-compliance.md`, as data over the reference harness. A case
+//! `docs/uvr-host-compliance.md`, as data over the reference harness. A case
 //! is a setup script, one input, and the expected post-state; the
 //! executor replays the script, applies the input, drains the network,
 //! and captures the delivery sequence and the post records, so the
 //! exporter and the runner share one execution path.
 //!
 //! Nodes are addressed by the explicit pair `system:counter`
-//! (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), one-indexed in both halves: the
+//! (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), one-indexed in both halves: the
 //! roster members of a provisioned cluster are `1:1` through `nodes:1`,
 //! a bumped life is `system:2` and onward, and the gossip sender is
 //! `nodes+1:1`.
@@ -36,7 +36,7 @@ const SETTLE_BOUND: usize = 1_000;
 const DRAIN_BOUND: usize = 1_000;
 
 /// The vector operations' fixed identity half: part of the fixture
-/// (`docs/uvrr-host-compliance.md` §4), never zero, never privileged.
+/// (`docs/uvr-host-compliance.md` §4), never zero, never privileged.
 const OP_MSB: u64 = 0x7665_6374;
 
 // ----------------------------------------------------------------------
@@ -44,7 +44,7 @@ const OP_MSB: u64 = 0x7665_6374;
 // ----------------------------------------------------------------------
 
 /// One typed cluster operation, the `reconfigure` operation's argument,
-/// in the corpus's abstract operation names (`docs/uvrr-host-compliance.md`
+/// in the corpus's abstract operation names (`docs/uvr-host-compliance.md`
 /// §3). Genesis operations (`void`, `init`) establish eras 0 and 1 and
 /// are never reconfiguration arguments; they appear in journal content.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -255,7 +255,7 @@ pub struct Case {
 // ----------------------------------------------------------------------
 
 /// The identity half's parse failure: the pair is one-indexed in both
-/// halves, so a zero half is no identity (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5).
+/// halves, so a zero half is no identity (`docs/uvr-io-obligations.md`, the boot-gate chapter §5).
 fn half(text: &str) -> Result<u16, String> {
     text.parse::<u16>()
         .map_err(|e| format!("the identity half {text:?} is not a u16: {e}"))
@@ -347,7 +347,7 @@ fn status_name(status: Status) -> &'static str {
 }
 
 /// The abstract operation name of a typed cluster operation
-/// (`docs/uvrr-host-compliance.md` §3): the corpus's vocabulary, never Rust
+/// (`docs/uvr-host-compliance.md` §3): the corpus's vocabulary, never Rust
 /// debug formatting.
 fn system_op_name(op: &SystemOperation) -> String {
     match op {
@@ -665,7 +665,7 @@ impl Executor {
     /// The post-input capture: the exact delivery sequence of the drain,
     /// and the full post record of every identity the cluster ever knew.
     /// The conformance host's settling window over HTTP
-    /// (`docs/uvrr-host-compliance.md` §8.2); [`Executor::run_case`] runs
+    /// (`docs/uvr-host-compliance.md` §8.2); [`Executor::run_case`] runs
     /// this same code, so the served capture and the in-process capture are
     /// one capture by construction.
     pub fn capture(&mut self) -> Expect {

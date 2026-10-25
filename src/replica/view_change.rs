@@ -470,7 +470,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             // `Increment` that promotes it, or a batch carrying either).
             // The node stays fenced, it adopts nothing here, its votes
             // are never counted, and it serves nothing, the acquisition
-            // (`docs/uvrr-protocols.md`, the reincarnation chapter §10) is the same ordinary
+            // (`docs/uvr-protocols.md`, the reincarnation chapter §10) is the same ordinary
             // state transfer, and the offered era's fold makes the offer
             // evaluable for the ordinary install that completes the
             // catch-up. Anything else is merely unevaluable: the §8.7.3
@@ -598,7 +598,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // the same breach as a committed-slot conflict (§9.1): declare
         // it, never guess a repair. The install supersedes any
         // nomination the installed suffix carries
-        // (`docs/uvrr-protocols.md`, the NOMINATE chapter): the view this
+        // (`docs/uvr-protocols.md`, the NOMINATE chapter): the view this
         // transition publishes is the electing message's own.
         let config =
             match self.fold_committed(journal, suffix, self.progress.committed(), committed, false)
@@ -608,7 +608,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                     return Err(PlanRefusal::JournalEntryUnavailable { slot });
                 }
                 // The installed frontier would split an establishing
-                // batch (`docs/uvrr-fuse.md`): the offer is malformed,
+                // batch (`docs/uvr-fuse.md`): the offer is malformed,
                 // dropped by name, the stalled-offer machinery is the
                 // repair.
                 Err(CommitFold::SplitBatch) => {
@@ -722,7 +722,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 return Err(PlanRefusal::JournalEntryUnavailable { slot });
             }
             // The selected frontier would split an establishing batch
-            // (`docs/uvrr-fuse.md`): the evidence is malformed, the
+            // (`docs/uvr-fuse.md`): the evidence is malformed, the
             // attempt installs nothing, the offer is dropped by name
             // and the node stays fenced for a fresh attempt.
             Err(CommitFold::SplitBatch) => {

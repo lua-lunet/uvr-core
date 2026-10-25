@@ -16,7 +16,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-REPO = "https://github.com/lua-lunet/uvrr-core"
+REPO = "https://github.com/lua-lunet/uvr-core"
 
 doc_dir = Path(__file__).resolve().parent
 src_dir = doc_dir / "src"
@@ -25,18 +25,18 @@ src_dir.mkdir(exist_ok=True)
 pages = {
     "index.md": "../README.md",
     "architecture.md": "architecture.md",
-    "uvrr-protocols.md": "uvrr-protocols.md",
-    "uvrr-fuse.md": "uvrr-fuse.md",
-    "uvrr-durability-model.md": "uvrr-durability-model.md",
-    "uvrr-io-obligations.md": "uvrr-io-obligations.md",
-    "uvrr-host-compliance.md": "uvrr-host-compliance.md",
-    "uvrr-application-protocol.md": "uvrr-application-protocol.md",
+    "uvr-protocols.md": "uvr-protocols.md",
+    "uvr-fuse.md": "uvr-fuse.md",
+    "uvr-durability-model.md": "uvr-durability-model.md",
+    "uvr-io-obligations.md": "uvr-io-obligations.md",
+    "uvr-host-compliance.md": "uvr-host-compliance.md",
+    "uvr-application-protocol.md": "uvr-application-protocol.md",
     "clients.md": "clients.md",
 }
 
 rewrites = {
     # A chapter that lives on the site keeps a relative link into the book.
-    "](docs/uvrr-protocols.md)": "](uvrr-protocols/)",
+    "](docs/uvr-protocols.md)": "](uvr-protocols/)",
     # Repository material outside the published set links to GitHub.
     "](formal/README.md)": f"]({REPO}/blob/main/formal/README.md)",
     "](../study/weighted-reachability/README.md)":
@@ -51,7 +51,7 @@ for page, source in pages.items():
 
 figures = src_dir / "diagrams"
 figures.mkdir(parents=True, exist_ok=True)
-for name in ("uvrr-boot-gate-states.svg", "uvrr-boot-gate-sequence.svg"):
+for name in ("uvr-boot-gate-states.svg", "uvr-boot-gate-sequence.svg"):
     shutil.copy2(doc_dir / "diagrams" / name, figures / name)
 
 subprocess.run(["zensical", "build"], cwd=doc_dir, check=True)

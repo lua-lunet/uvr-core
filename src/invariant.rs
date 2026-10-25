@@ -127,11 +127,11 @@ impl HeaderSlotRole {
 /// | [`crate::wire::Tag::PlannedViewChange`] | `Absent` | like [`crate::wire::Tag::StartViewChange`], and must not fence (§8.7.7) |
 /// | [`crate::wire::Tag::GetState`] | `Frontier` | the requester's accepted frontier; the fetch resumes one past it (§4, §13.1 step 5) |
 /// | [`crate::wire::Tag::NewState`] | `Frontier` | the last slot the chunk covers; `more` on a partial answer resumes from the requester's cursor (§4, §13.1 step 5) |
-/// | `Reincarnation` | `Absent` | names two identities, no history claim (`docs/uvrr-protocols.md`, the reincarnation chapter §4) |
-/// | [`crate::wire::Tag::Fuse`] | `Operation` | `first_slot`, the slot of the first packed op, carrying that slot's ballot; each subsequent op occupies `first_slot + i` at its own ballot (`docs/uvrr-fuse.md` §1) |
-/// | [`crate::wire::Tag::FuseOk`] | `Operation` | the last accepted slot of the batch (`docs/uvrr-fuse.md` §3) |
-/// | [`crate::wire::Tag::CommitBatch`] | `Frontier` | the last committed frontier of the batch, mirroring [`crate::wire::Tag::Commit`] (`docs/uvrr-fuse.md` §4) |
-/// | [`crate::wire::Tag::GossipRequest`] | `Absent` | the frontiers ride the body (`docs/uvrr-protocols.md`, the rejoin chapter §2–§3) |
+/// | `Reincarnation` | `Absent` | names two identities, no history claim (`docs/uvr-protocols.md`, the reincarnation chapter §4) |
+/// | [`crate::wire::Tag::Fuse`] | `Operation` | `first_slot`, the slot of the first packed op, carrying that slot's ballot; each subsequent op occupies `first_slot + i` at its own ballot (`docs/uvr-fuse.md` §1) |
+/// | [`crate::wire::Tag::FuseOk`] | `Operation` | the last accepted slot of the batch (`docs/uvr-fuse.md` §3) |
+/// | [`crate::wire::Tag::CommitBatch`] | `Frontier` | the last committed frontier of the batch, mirroring [`crate::wire::Tag::Commit`] (`docs/uvr-fuse.md` §4) |
+/// | [`crate::wire::Tag::GossipRequest`] | `Absent` | the frontiers ride the body (`docs/uvr-protocols.md`, the rejoin chapter §2–§3) |
 ///
 /// A `match` rather than a lookup table, on the codebase's standing reasoning: the
 /// compiler checks that every tag has a rule, and a tag added to `wire` without a
@@ -178,7 +178,7 @@ pub fn header_slot_role(tag: Tag) -> HeaderSlotRole {
 /// 2. **View succession** (§8.7.3, W1): `current` never regresses; a change is a
 ///    legal successor, delegated to [`crate::ids::Ballot::is_legal_successor`], never
 ///    re-derived, or the commit-time nomination walk of the per-slot era law
-///    (`docs/uvrr-fuse.md` §4 step 4), checked on the pair's own evidence.
+///    (`docs/uvr-fuse.md` §4 step 4), checked on the pair's own evidence.
 /// 3. **Retained provenance** (§1.3): `retained` changes only on re-selection,
 ///    restart, or a [`crate::wire::Tag::DoViewChange`]/[`crate::wire::Tag::StartView`]/[`crate::wire::Tag::NewState`] peer message.
 /// 4. **Revision**: exactly +1, so a stale plan is rejected by comparison (§12).
@@ -242,8 +242,8 @@ fn rule1_frontiers_violated(old: &Progress, new: &Progress) -> bool {
 /// to get it wrong.
 ///
 /// The one advance past that adjacency is the commit-time nomination walk
-/// (`docs/uvrr-fuse.md` §4 step 4, the NOMINATE chapter of
-/// `docs/uvrr-protocols.md`): under the per-slot era law a fused slab spans
+/// (`docs/uvr-fuse.md` §4 step 4, the NOMINATE chapter of
+/// `docs/uvr-protocols.md`): under the per-slot era law a fused slab spans
 /// one era per establishing slot, and the riders the slab carries bump the
 /// serving view across every era the slab's commit establishes, in the one
 /// published transition, so the leader stays stable across the slab's eras.
@@ -346,11 +346,11 @@ fn rule3_retained_violated(old: &Progress, new: &Progress, input: &InputKind) ->
             | Tag::GetState
             | Tag::Reincarnation
             // The rejoin gossip's request carries frontiers only, it makes
-            // no history claim (`docs/uvrr-protocols.md`, the rejoin chapter
+            // no history claim (`docs/uvr-protocols.md`, the rejoin chapter
             // §2–§3), so it can never reselect a retained history.
             | Tag::GossipRequest => false,
             // The fuse envelopes are ordinary accept-path packing
-            // (`docs/uvrr-fuse.md`): receiving a `Fuse` is receiving the
+            // (`docs/uvr-fuse.md`): receiving a `Fuse` is receiving the
             // equivalent sequence of `Prepare`s, every packed slot at its own
             // ballot, and none of the three reselects a retained history.
             Tag::Fuse | Tag::FuseOk | Tag::CommitBatch => false,

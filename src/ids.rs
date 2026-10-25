@@ -80,7 +80,7 @@ const _: () = assert!(align_of::<NodeId>() == align_of::<u32>());
 /// The sysadmin-assigned system identifier: the durable high half of a lawful node
 /// identity. Zero is unrepresentable, so an uninitialised or corrupt marker cannot be
 /// read as an identity; the never-read-as-zero assert is a type
-/// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), not a runtime check.
+/// (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), not a runtime check.
 #[repr(transparent)]
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -155,7 +155,7 @@ impl NodeId {
 
     /// The next life of the same system: the counter incremented, which the host must
     /// flush before the first emission
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5). A bit pattern that is no identity has no next
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §5). A bit pattern that is no identity has no next
     /// life, and the sixteenth bit of lives is the last the packing holds.
     pub const fn next_life(self) -> Option<NodeId> {
         match self.system_id() {

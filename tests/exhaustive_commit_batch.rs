@@ -1,5 +1,5 @@
 //! Exhaustive per-message properties: the [`uvrr::wire::Tag::CommitBatch`] a backup receives
-//! (`docs/uvrr-fuse.md` §4).
+//! (`docs/uvr-fuse.md` §4).
 //!
 //! One message, applied to a node in an assembled state, over the plain cross
 //! product of the dimensions the receive path branches on: the receiver's role

@@ -1,4 +1,4 @@
-//! The fuse / view-change resolution (docs/uvrr-fuse.md §4 step 6; spec
+//! The fuse / view-change resolution (docs/uvr-fuse.md §4 step 6; spec
 //! §9.1, §9.2 and the §1.3 ranking rule): a fused batch accepted by a
 //! quorum under view v, the leader crashed before the commit emission,
 //! and the next view's recovery of what the quorum knew.
@@ -89,7 +89,7 @@ fn three_learner_joins_plan() -> Plan {
 
 /// Asserts the journal at `id` carries `ops` one per slot from `first`
 /// upwards, each stamped with the era of that slot's own ballot: the
-/// fuse's per-slot journal shape (docs/uvrr-fuse.md §1). Under the
+/// fuse's per-slot journal shape (docs/uvr-fuse.md §1). Under the
 /// per-slot era law the stamp advances one era per establishing slot
 /// from the head slot's era — the header's own — and the schedules these
 /// scripts pack carry no rider, so slot `first + i` is stamped
@@ -482,7 +482,7 @@ fn per_slot_resolution_after_fuse_interrupted() {
     h.assert_safety();
 
     // The surviving quorum fills the open slot, and the riderless slab
-    // commits as the paced law admits (`docs/uvrr-fuse.md` §4 step 4):
+    // commits as the paced law admits (`docs/uvr-fuse.md` §4 step 4):
     // one era per establishing slot, the head era alone per commit until
     // the host paces the view into it. The first catch-up proposal takes
     // slot 6 and its acknowledgements cascade over the accepted tail:

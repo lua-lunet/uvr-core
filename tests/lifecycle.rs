@@ -1,5 +1,5 @@
 //! The boot gate: the lifecycle trait and the typestate driver
-//! (`docs/uvrr-io-obligations.md`, the boot-gate chapter).
+//! (`docs/uvr-io-obligations.md`, the boot-gate chapter).
 //!
 //! The classes:
 //!

@@ -1,4 +1,4 @@
-# The uVRR compliance suite
+# The UVR compliance suite
 
 This document states the compliance suite: the executable form of the
 protocol's obligations, runnable by any conforming harness in any
@@ -107,7 +107,7 @@ A case is one JSON object:
 
 - `id` MUST be stable and unique; it names the case in every report.
 - `theorem` names the Lean theorem the case pins
-  (`formal/uvrr-lean/`): the corpus and the formalization share one
+  (`formal/uvr-lean/`): the corpus and the formalization share one
   vocabulary, and a family's cases name the theorems of the rung the
   family is seeded from.
 - `clause` states the obligation in RFC 2119 terms; `keywords` carries
@@ -185,7 +185,7 @@ obligations:
 
 ## 6. Conformance
 
-An implementation conforms to the uVRR protocol when:
+An implementation conforms to the UVR protocol when:
 
 1. it implements the abstract host interface over its own bindings,
    including the normative wire codec;
@@ -233,7 +233,7 @@ The suite grows by families; a family MUST state its clauses before its
 cases are generated.
 
 The corpus has a second copy downstream: `lunet-locks` pins this crate
-at `ext/uvrr-core` and carries its own copy of `tests/compliance/corpus`
+at `ext/uvr-core` and carries its own copy of `tests/compliance/corpus`
 at the pinned version, so a regeneration here is a change the
 downstream lock must re-sync before its own consumers see the corpus
 the release carries.

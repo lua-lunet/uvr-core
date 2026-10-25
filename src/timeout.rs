@@ -3,7 +3,7 @@
 //!
 //! A node's timeout is a local clock event on a single-threaded host timer.
 //! Its duration is never prescribed, may be dynamic, and is host policy, not
-//! protocol: the core reads no clock (S4, `docs/uvrr-durability-model.md`
+//! protocol: the core reads no clock (S4, `docs/uvr-durability-model.md`
 //! §13.2), and a duration belongs to the host the way
 //! [`crate::replica::ViewChangeKnobs::primary_timeout`] does. What the node may DO when the
 //! waiting time is exceeded is protocol, and this module is that answer as a
@@ -144,7 +144,7 @@ impl Timeout {
 pub enum Opinion {
     /// Resend what has not been received a response on: the un-acknowledged
     /// traffic, a relay of what the core already released
-    /// (`docs/uvrr-durability-model.md` §13.2, the transport replay).
+    /// (`docs/uvr-durability-model.md` §13.2, the transport replay).
     Retransmit,
     /// The clock event is not protocol for this condition: nothing follows
     /// from it.

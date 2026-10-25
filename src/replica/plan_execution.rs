@@ -1,5 +1,5 @@
 //! Plan execution: the leader side of the operator's reconfiguration plan
-//! (`docs/uvrr-protocols.md`, the solver chapter).
+//! (`docs/uvr-protocols.md`, the solver chapter).
 //!
 //! The operator computes a plan once and submits it over the node's admin
 //! ingress. The leader validates it against its current committed
@@ -9,7 +9,7 @@
 //! era, each proposed through [`plan_step_proposal`], the fuse envelope
 //! when the step packs at least two operations within the envelope budget,
 //! the ordinary establishing [`crate::wire::Tag::Prepare`] otherwise
-//! (`docs/uvrr-fuse.md` §4). The forced-reincarnation machine steps its own
+//! (`docs/uvr-fuse.md` §4). The forced-reincarnation machine steps its own
 //! sequence the same way, one step per era on a tick, through
 //! [`plan_reconfigure`] (§8 of the fuse doc).
 //!
@@ -42,7 +42,7 @@ use super::{
 const NOT_LEADER: &str = "the replica is not the leader of its current view";
 
 /// The leader's armed plan-execution machine
-/// (`docs/uvrr-protocols.md`, the solver chapter): the accepted plan's batches
+/// (`docs/uvr-protocols.md`, the solver chapter): the accepted plan's batches
 /// and the index of the next step to propose.
 ///
 /// Volatile by design: a leader crash discards it, and the operator re-plans
@@ -57,7 +57,7 @@ pub(in crate::replica) struct PlannedSequence {
 }
 
 impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
-    /// A plan submission at the admin ingress (`docs/uvrr-protocols.md`,
+    /// A plan submission at the admin ingress (`docs/uvr-protocols.md`,
     /// the solver chapter): validate against the current committed
     /// configuration, answer the verdict, and on acceptance arm the machine.
     ///
@@ -178,7 +178,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// The journal shape of one establishing batch is either a single
     /// [`crate::configuration::SystemOperation::Batch`] entry (the ordinary [`crate::wire::Tag::Prepare`] path) or a maximal run of
     /// consecutive system entries, the packed schedule a fuse envelope
-    /// carried, one op per consecutive slot (`docs/uvrr-fuse.md` §1). Both
+    /// carried, one op per consecutive slot (`docs/uvr-fuse.md` §1). Both
     /// fold as the one batch they are, so the hook matches both: a run of
     /// two or more system entries compares as `Batch(ops)`; a singleton
     /// compares only when its payload is itself a [`crate::configuration::SystemOperation::Batch`], exactly as

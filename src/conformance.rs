@@ -1,5 +1,5 @@
 //! The crate's own host tooling
-//! (`docs/uvrr-host-compliance.md`).
+//! (`docs/uvr-host-compliance.md`).
 //!
 //! The sans-I/O core proper reads no clock and opens no socket, and the
 //! modules here are stated so the boundary is explicit. `harness` is the

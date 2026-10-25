@@ -762,7 +762,7 @@ pub enum Tag {
     GetState = 9,
     /// A history range in reply to [`Tag::GetState`]. Sizing is the host's (W5).
     NewState = 10,
-    /// A reincarnation announcement (`docs/uvrr-protocols.md`, the reincarnation chapter §4): the
+    /// A reincarnation announcement (`docs/uvr-protocols.md`, the reincarnation chapter §4): the
     /// bumped identity `(old, new)` pair, sent by the restarted node to the
     /// leader, which drives the forced weight sequence in reply.
     ///
@@ -771,21 +771,21 @@ pub enum Tag {
     /// protocol exists to have eliminated) and stay retired.
     Reincarnation = 13,
     /// One datagram packing the per-slot [`Tag::Prepare`] messages of one
-    /// reconfiguration schedule (`docs/uvrr-fuse.md` §1): the head ballot in
+    /// reconfiguration schedule (`docs/uvr-fuse.md` §1): the head ballot in
     /// the header, `first_slot` in the header slot, and `count` then
     /// `count × SystemOperation` in the body. Every packed slot carries its
     /// own ballot; the header names the first of them, and the slab's last is
     /// the tail ballot.
     Fuse = 14,
-    /// An acceptor's acknowledgement of a [`Tag::Fuse`] (`docs/uvrr-fuse.md` §3):
+    /// An acceptor's acknowledgement of a [`Tag::Fuse`] (`docs/uvr-fuse.md` §3):
     /// `count`, then one accepted slot per packed op, in batch order. No
     /// range encodings.
     FuseOk = 15,
     /// One committed frontier per packed slot, in batch order
-    /// (`docs/uvrr-fuse.md` §4): `count`, then `count × Slot`. No range
+    /// (`docs/uvr-fuse.md` §4): `count`, then `count × Slot`. No range
     /// encodings.
     CommitBatch = 16,
-    /// The rejoin gossip's request (`docs/uvrr-protocols.md`, the rejoin chapter
+    /// The rejoin gossip's request (`docs/uvr-protocols.md`, the rejoin chapter
     /// §2–§3): the sender's frontiers, fired at every node it knows. A node
     /// that cannot commit in order uses it to ask for the missing range; a
     /// node outside the cluster uses it as its join. Only the node that

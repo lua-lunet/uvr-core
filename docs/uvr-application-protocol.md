@@ -1,4 +1,4 @@
-# uVRR application protocol: the gateway, the session, and the obligations of a host
+# UVR application protocol: the gateway, the session, and the obligations of a host
 
 The architecture decision B2 (`docs/architecture.md`) removes the
 per-client table from the core: the core orders opaque operations and
@@ -6,7 +6,7 @@ nothing else, and duplicate policy, result caching, and reply delivery
 belong to the host. What B2 leaves unnamed is the role within a host that
 terminates alien application traffic. This document names that role, the
 **gateway**, and states the normative obligations an application protocol
-over uVRR owes it. A worked example, built against this document, is
+over UVR owes it. A worked example, built against this document, is
 maintained in the
 [lunet-locks](https://github.com/lua-lunet/lunet-locks) repository at
 `docs/src/rfc-application-protocol.md`.
@@ -18,7 +18,7 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 RFC 2119.
 
 **application**: the party on the far side of a network that is unknown
-to uVRR: a phone application, a browser, another machine. An application
+to UVR: a phone application, a browser, another machine. An application
 is never referred to as a client. The service never holds an application
 identity.
 
@@ -29,7 +29,7 @@ replication protocol. Every node is a gateway in turn; the role is not a
 process, a binary, or a deployment unit.
 
 **host**: the distributed system that runs an application protocol over
-uVRR. A host is one or more processes and is not a single thing.
+UVR. A host is one or more processes and is not a single thing.
 
 **session**: the state a gateway holds for one application connection's
 command stream, identified by a `session_id`.
@@ -73,7 +73,7 @@ A gateway MUST satisfy all of the following.
 4. A gateway MUST write a command's result from a nexus entry taken at
    the moment of writing, and MUST NOT write a result twice. This is the
    at-most-once property, and it is structural rather than defended: the
-   entry is taken, uVRR commits each operation exactly once, and a crash
+   entry is taken, UVR commits each operation exactly once, and a crash
    between the take and the write destroys the session, leaving nothing
    to write the result from. A gateway MUST NOT attempt to retransmit a
    result.
@@ -105,7 +105,7 @@ holds, and the obligations above apply unchanged.
 
 ## What the replication protocol owes the session
 
-uVRR commits each opaque operation exactly once and in one order. That is
+UVR commits each opaque operation exactly once and in one order. That is
 what makes obligation 4 structural: the commit is the commit, and the
 reply is a courier for it that may be lost but never duplicated. The
 gateway supplies everything the core deliberately does not: identity,

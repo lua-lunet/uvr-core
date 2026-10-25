@@ -914,7 +914,7 @@ fn join_inserts_at_exactly_the_named_position() {
 /// operation leaves the table unchanged" is half the property under test. The
 /// nomination is the seventh symbol: a rider, refused solitary
 /// ([`uvrr::configuration::ConfigError::SolitaryNomination`]), so every walk that draws it asserts the
-/// refusal is a no-op on the table (`docs/uvrr-protocols.md`, the NOMINATE chapter).
+/// refusal is a no-op on the table (`docs/uvr-protocols.md`, the NOMINATE chapter).
 fn alphabet() -> Vec<SystemOperation> {
     vec![
         SystemOperation::Increment(N0),
@@ -1004,7 +1004,7 @@ fn era_advances_by_exactly_one_per_accepted_operation() {
 // 8b. The nomination's seats: a rider, never a solitary era
 // ---------------------------------------------------------------------------
 
-/// The nomination's three seats (`docs/uvrr-protocols.md`, the NOMINATE chapter): a
+/// The nomination's three seats (`docs/uvr-protocols.md`, the NOMINATE chapter): a
 /// solitary entry is refused by name, a zero offset is refused by name, and a
 /// rider folds to the identical configuration inside the establishing batch
 /// of the era its bump enters, so the batch's fold is the fold of its

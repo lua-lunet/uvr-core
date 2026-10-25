@@ -10,7 +10,7 @@
 //! shapes, so termination follows from the finite space (at most 16 members,
 //! weights in {0, 1, 2}). The era advances at every establishing slot and the
 //! `Nominate` rider tracks the running view, so the leader stays stable while
-//! the cluster changes (`docs/uvrr-protocols.md`, the NOMINATE chapter).
+//! the cluster changes (`docs/uvr-protocols.md`, the NOMINATE chapter).
 
 use crate::configuration::{Configuration, MAX_WEIGHT, SystemOperation};
 use crate::ids::{Era, NodeId, Slot, View};
@@ -134,7 +134,7 @@ impl Step {
 /// establishing slot. The running view advances by the rider's offset at
 /// every ridden slot; the offset is the least positive bump with
 /// `primary(next, view + offset) == primary(previous, view)`, the documented
-/// leader-stability arithmetic (`docs/uvrr-protocols.md`, the NOMINATE
+/// leader-stability arithmetic (`docs/uvr-protocols.md`, the NOMINATE
 /// chapter). A scaling operation rides no rider (R13); a step that evicts the
 /// leader gets no rider either, because no offset can preserve an evicted
 /// leader: that leader change is genuine and is the host's view change to

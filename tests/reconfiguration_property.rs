@@ -133,7 +133,7 @@ fn assert_domain(config: &Configuration) {
 /// The nodes an op touches: the op's own member, or every member for the
 /// whole-configuration scaling ops. The nomination touches nothing: it
 /// moves no mass and no membership
-/// (`docs/uvrr-protocols.md`, the NOMINATE chapter).
+/// (`docs/uvr-protocols.md`, the NOMINATE chapter).
 fn touched(op: &SystemOperation, config: &Configuration) -> Vec<NodeId> {
     match op {
         SystemOperation::Increment(node)

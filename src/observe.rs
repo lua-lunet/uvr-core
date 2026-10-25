@@ -188,18 +188,18 @@ pub enum Diagnostic {
     },
     /// A [`crate::wire::Tag::PrepareOk`] from a member whose weight is 0, a learner (§8.4).
     /// The learner receives history but contributes nothing to any quorum
-    /// (`docs/uvrr-protocols.md`, the reincarnation chapter §6: its messages are discarded on
+    /// (`docs/uvr-protocols.md`, the reincarnation chapter §6: its messages are discarded on
     /// ingress), so its acknowledgement is dropped before it is ever
     /// counted.
     LearnerSender {
         /// The transport-attributed sender.
         sender: NodeId,
     },
-    /// A `Reincarnation` announcement (`docs/uvrr-protocols.md`, the reincarnation chapter §4) that the recipient
+    /// A `Reincarnation` announcement (`docs/uvr-protocols.md`, the reincarnation chapter §4) that the recipient
     /// cannot act on: the recipient is not the leader of its current view,
     /// or the message's sender is not the new identity it names. Dropped,
     /// never faulted, the bumped node re-sends until a stable leader
-    /// exists (`docs/uvrr-protocols.md`, the reincarnation chapter §8).
+    /// exists (`docs/uvr-protocols.md`, the reincarnation chapter §8).
     ReincarnationRefused {
         /// The transport-attributed sender.
         sender: NodeId,
@@ -261,7 +261,7 @@ pub enum Diagnostic {
     /// field lied.
     MalformedViewChange,
     /// The leader's armed plan-execution machine aborted
-    /// (`docs/uvrr-protocols.md`, the solver chapter): a step the plan's own
+    /// (`docs/uvr-protocols.md`, the solver chapter): a step the plan's own
     /// acceptance validation folded was refused by the reconfiguration
     /// gates, a plan computed to be legal cannot become illegal, so the
     /// refusal means the cluster changed underneath the plan. The machine
@@ -270,7 +270,7 @@ pub enum Diagnostic {
         /// The zero-based index of the step the gates refused.
         step: usize,
     },
-    /// A fuse envelope (`docs/uvrr-fuse.md`) the transition dropped whole:
+    /// A fuse envelope (`docs/uvr-fuse.md`) the transition dropped whole:
     /// never a partial fold (§3), so the envelope is either applied in its
     /// entirety or refused with this one named outcome.
     FuseRefusal,

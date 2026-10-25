@@ -94,7 +94,7 @@ pub(in crate::replica) enum CommitFold {
     },
 }
 
-/// The envelope budget of the fuse builder (`docs/uvrr-fuse.md` §2, §4
+/// The envelope budget of the fuse builder (`docs/uvr-fuse.md` §2, §4
 /// step 5): the packed operation count above which an armed schedule's
 /// establishing batch falls back to the ordinary per-op [`crate::wire::Tag::Prepare`] path. A
 /// full-cluster reconfiguration is at most seven operations, and the whole
@@ -105,7 +105,7 @@ pub(in crate::replica) enum CommitFold {
 pub const FUSE_MAX_OPS: usize = 7;
 
 /// The nomination riders one covered run carried, applied as the CAS bump
-/// (`docs/uvrr-protocols.md`, the NOMINATE chapter): `running` is the view the node
+/// (`docs/uvr-protocols.md`, the NOMINATE chapter): `running` is the view the node
 /// serves, `None` when it is not [`crate::progress::Status::Normal`] and no nomination can match it.
 /// Each rider CAS-predicates on the running view number, the prior bumps
 /// of the same advance included, and its bump enters the era the carrying
@@ -148,7 +148,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// picture, exactly as in [`crate::replica::Replica::applied_walk`]. Returns the
     /// folded table, the frontier the fold actually covered, whether the
     /// era window stopped the fold short of `through`, and the nomination
-    /// bump the covered runs carried (`docs/uvrr-protocols.md`, the NOMINATE chapter): the
+    /// bump the covered runs carried (`docs/uvr-protocols.md`, the NOMINATE chapter): the
     /// view a serving node publishes after the riders its commit covered,
     /// `None` when no rider matched the node's view. The receiver's own
     /// table back when the advance covers no system operation: the fold is
@@ -156,7 +156,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     ///
     /// A maximal run of two or more CONSECUTIVE system entries SHARING ONE
     /// ENTRY ERA folds as the ONE establishing batch it is
-    /// (`docs/uvrr-fuse.md` §1: the packed schedule a fuse envelope
+    /// (`docs/uvr-fuse.md` §1: the packed schedule a fuse envelope
     /// carried journals one op per consecutive slot, each stamped with the
     /// era the fold of the preceding slots established): the run's
     /// operations fold through the batch applier at the run's first slot
@@ -175,7 +175,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// A run the advance would SPLIT is refused
     /// ([`crate::CommitFold::SplitBatch`]): a batch commits whole or not at all.
     ///
-    /// `paced` engages the §8.7.3 era window (W1, `docs/uvrr-fuse.md` §4
+    /// `paced` engages the §8.7.3 era window (W1, `docs/uvr-fuse.md` §4
     /// step 4): the fold advances only as far as the node's own serving
     /// view can carry — an extension may establish at most one era past
     /// the running ballot's era — except that a run whose nomination rider
@@ -186,7 +186,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// view cannot carry DEFERS: the fold stops before it, `stopped`
     /// marks the deferral, and the tail commits once the durable view has
     /// walked into the era the folded table established, the paced
-    /// emission of `docs/uvrr-fuse.md` §6. A fenced node runs no
+    /// emission of `docs/uvr-fuse.md` §6. A fenced node runs no
     /// nomination, so its window is the published view's era and never
     /// walks, the boot-acquisition pacing of §10. `paced = false` is the
     /// unbounded install fold: the installed committed history was
@@ -468,7 +468,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // order), an unrepresentable `v'` refusing the proposal outright
         // rather than wrapping the view space.
         let mut recipients: Vec<NodeId> = self.backups();
-        // The stream targets (`docs/uvrr-protocols.md`, the rejoin chapter
+        // The stream targets (`docs/uvr-protocols.md`, the rejoin chapter
         // §3): the establishing operation is exactly what the announced
         // standby and every gossip-witness must hold, so the copies ride
         // the forced step's proposal as well.
@@ -562,7 +562,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     }
 
     /// The proposal of an armed schedule's establishing batch
-    /// (`docs/uvrr-fuse.md` §4): the fuse envelope when the batch packs at
+    /// (`docs/uvr-fuse.md` §4): the fuse envelope when the batch packs at
     /// least two operations within the envelope budget
     /// ([`FUSE_MAX_OPS`]), the ordinary establishing [`crate::wire::Tag::Prepare`] otherwise,
     /// the fallback IS the ordinary path, unchanged. The plan-execution
@@ -583,7 +583,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         }
     }
 
-    /// The fuse builder (`docs/uvrr-fuse.md` §4): the leader-side emission
+    /// The fuse builder (`docs/uvr-fuse.md` §4): the leader-side emission
     /// of an armed schedule's establishing batch of at least two
     /// operations. One [`crate::wire::Tag::Fuse`] per recipient backup, header `first_slot` =
     /// the next unsent slot, body = the batch's operations in plan order,
@@ -661,7 +661,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             body: Body::Fuse { ops: ops.to_vec() },
         };
         let mut recipients = self.backups();
-        // The stream targets (`docs/uvrr-protocols.md`, the rejoin chapter
+        // The stream targets (`docs/uvr-protocols.md`, the rejoin chapter
         // §3): the establishing batch is exactly what the announced
         // standby and every gossip-witness must hold, so the envelope
         // reaches them too.
@@ -704,7 +704,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             .with_bookkeeping(bookkeeping))
     }
 
-    /// A [`crate::wire::Tag::Fuse`] envelope's acceptor transition (`docs/uvrr-fuse.md` §3).
+    /// A [`crate::wire::Tag::Fuse`] envelope's acceptor transition (`docs/uvr-fuse.md` §3).
     /// The envelope is ATOMIC (§2): the packed schedule folds whole or the
     /// whole envelope is refused, there is no partial fold and no wire
     /// nack. The slab's slots each carry their own ballot, the head ballot in
@@ -724,7 +724,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// the validation runs on the clone, exactly as `plan_prepare` folds an
     /// arriving system entry, and the frontier advances per op. The
     /// journaled entries are stamped with the era of each packed slot's own
-    /// ballot (`docs/uvrr-fuse.md` §1: the header carries the head ballot),
+    /// ballot (`docs/uvr-fuse.md` §1: the header carries the head ballot),
     /// which is also what any retransmission of a packed slot's
     /// [`crate::wire::Tag::Prepare`] must carry. Accepting a Phase2 at a slot
     /// promises that slot's ballot even when the Phase1 was lost, so the

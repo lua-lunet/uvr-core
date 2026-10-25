@@ -1,9 +1,9 @@
 # Architecture
 
-`uvrr-core` is a SANS-I/O library with a C ABI, not a framework. It never tells the host
+`uvr-core` is a SANS-I/O library with a C ABI, not a framework. It never tells the host
 what to do.
 
-Section references are to `docs/uvrr-durability-model.md`. Rulings are the decision
+Section references are to `docs/uvr-durability-model.md`. Rulings are the decision
 record at the end of this document.
 
 ## Closed for modification
@@ -161,7 +161,7 @@ clean, the classic VRR-2012 notion of recovery, but only over a clean shutdown a
 full reload of all durable state. A start that cannot prove those is not a recovery
 at all: there is no crash-recovery protocol, because there is no crash to recover
 from. A node that lost volatile state is by construction a different node
-(`docs/uvrr-protocols.md`, the reincarnation chapter §1) and re-enters
+(`docs/uvr-protocols.md`, the reincarnation chapter §1) and re-enters
 through reincarnation, not
 recovery. Nothing in the clean stop/start/sync path or the reincarnation path may
 deviate from that: clean stop/start/sync runs the ordinary restart (all four
@@ -201,7 +201,7 @@ A leader exposes its reconfiguration plan ingress on a dedicated admin
 endpoint, separate from regular client traffic. On every message selection
 the host polls the admin ingress BEFORE the regular queue, so a plan never
 waits behind client traffic; the leader-side acceptance and execution rule
-the obligation serves is pinned in `docs/uvrr-protocols.md` (the solver chapter).
+the obligation serves is pinned in `docs/uvr-protocols.md` (the solver chapter).
 
 ### Liveness: the resend, the heartbeat, and the retransmit
 
@@ -210,7 +210,7 @@ is released as an effect, once, and every timeout the cluster's liveness rests
 on is the host's. Whatever the timeout durations and whatever mechanism arms
 them, they are the host's. A repeated send is a relay of what the core has
 already released, never a message the host composes (the authorization rule for
-replayed messages of `uvrr-durability-model.md` §13.2; retransmission is host
+replayed messages of `uvr-durability-model.md` §13.2; retransmission is host
 transport policy there). The papers make the repeated send the implementation's
 matter: the protocol descriptions of Viewstamped Replication Revisited (2012)
 ignore "re-sending of messages that appear to have been lost" as a minor detail
@@ -272,7 +272,7 @@ and saying so.
 Identifiers are per-domain: `W` identity & wire, `S` durability & stability, `Q` quorum
 policy, `B` application boundary, `G` runtime guards & enforcement, `P` process & hygiene.
 Numbering is within the domain.
-Section references are to `docs/uvrr-durability-model.md`.
+Section references are to `docs/uvr-durability-model.md`.
 
 ### Identity & wire
 
@@ -382,7 +382,7 @@ transport (single checksummed datagram, cache-line scale), so the first op in th
 decides the whole batch and no proof over interruptions mid-reconfiguration is owed.
 The builder caps the schedule (`FUSE_MAX_OPS`, a build-site policy) and falls back to
 ordinary per-op `Prepare`s; the codec itself keeps no size constant, per W5. Full
-statement: `docs/uvrr-fuse.md`.
+statement: `docs/uvr-fuse.md`.
 
 **Consequence.** Three new tags and a build-site guard instead of a parallel protocol.
 The reconfiguration machine is untouched; the wire contract gains three golden
@@ -563,7 +563,7 @@ zero-net, mass-2 identity swap is refused, and a leader crash cannot compress it
 The leader evaluates any batch as a what-if on an immutable clone before proposing it,
 and the reducer partitions an operation stream into maximal legal era batches
 (`src/reconfiguration.rs`). The itemized rules are
-`docs/uvrr-protocols.md` (the reconfiguration-rules chapter).
+`docs/uvr-protocols.md` (the reconfiguration-rules chapter).
 
 **Rationale.**
 
@@ -582,7 +582,7 @@ and the reducer partitions an operation stream into maximal legal era batches
 unit of per-node mass. Cluster state is an immutable snapshot plus a WAL of legal
 operations; there is no Crash-Recover by design, a dirty node reincarnates under a new
 identity and the leader drives the forced sequence
-(`docs/uvrr-protocols.md`, the reincarnation chapter §6).
+(`docs/uvr-protocols.md`, the reincarnation chapter §6).
 
 ### Application boundary
 
@@ -632,7 +632,7 @@ query according to the host protocol. Transport, leader forwarding, connection
 tracking, and response formatting remain host extensions. The role a node
 holds when it terminates alien application traffic is the **gateway**; the
 gateway, the session it holds, and the obligations an application protocol
-owes are specified in `docs/uvrr-application-protocol.md`. The reference
+owes are specified in `docs/uvr-application-protocol.md`. The reference
 client-facing deployment (a two-site cluster behind a layer-4 load balancer,
 the command circuit from accept to reply, and where the paper's
 one-outstanding-request rule lands in the host) is stated in
@@ -696,7 +696,7 @@ current one, the amnesiac voter of §14.2 by another name.
 
 **Decision.** Identity monotonicity is asserted at the bump: the pair identity
 the bump returns is strictly beyond the one it supersedes in the lawful
-ordering of `docs/uvrr-io-obligations.md`, the boot-gate chapter §5, so a
+ordering of `docs/uvr-io-obligations.md`, the boot-gate chapter §5, so a
 superseded pair never re-enters
 circulation. The surrounding bounded arithmetic establishes the impossibility;
 the `assert!` at the bump site is the tripwire, release included. The

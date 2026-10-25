@@ -93,7 +93,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// respect to SERVING, fencing governs participation, not serving.
     /// The serving gate is therefore the cluster-legality gate alone (the
     /// sender is a member of the requested era's configuration or, the
-    /// learner acquisition rule (`docs/uvrr-protocols.md`, the reincarnation chapter §10), of
+    /// learner acquisition rule (`docs/uvr-protocols.md`, the reincarnation chapter §10), of
     /// the responder's current committed configuration, a weight-0
     /// learner included) plus the statuses whose journal is not servable:
     /// [`crate::progress::Status::Restarting`] or [`crate::progress::Status::Joining`] (the node's history is not yet proved
@@ -124,7 +124,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     ) -> Result<PlannedTransition, PlanRefusal> {
         let header = message.header;
         // The cluster-legality gate, with the learner acquisition rule
-        // (`docs/uvrr-protocols.md`, the reincarnation chapter §10): a sender that is not a member
+        // (`docs/uvr-protocols.md`, the reincarnation chapter §10): a sender that is not a member
         // of the REQUESTED era's configuration may still be served when it
         // is a member of the responder's current committed configuration,
         // any weight, a weight-0 learner included. A learner behind the
@@ -305,7 +305,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // routes, both fenced (§10): the node's own open fetch, the view
         // and the responder must be the ones the node asked, or, for a
         // node still at its boot fence that opened NO fetch, the leader's
-        // missed-range push (`docs/uvrr-protocols.md`, the reincarnation chapter §7): the
+        // missed-range push (`docs/uvr-protocols.md`, the reincarnation chapter §7): the
         // announcement named the node's past-life frontiers and the
         // leader's ack pushed what it missed, under the view the
         // ANNOUNCEMENT carried, the one the node already holds. The
@@ -397,7 +397,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // `current == retained`, it has adopted nothing) that opened this
         // fetch itself may take the chunk's committed frontier and fold
         // the system operations it covers. That is the speculative
-        // learner acquisition `docs/uvrr-protocols.md`, the reincarnation chapter §10 states: the
+        // learner acquisition `docs/uvr-protocols.md`, the reincarnation chapter §10 states: the
         // learner acquires state by streaming while never voting, the
         // chunk is history it actively fetched, every entry verified
         // against its local journal by the suffix ruling above, and the
@@ -509,7 +509,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 return Err(PlanRefusal::JournalEntryUnavailable { slot });
             }
             // The chunk's committed frontier would split an
-            // establishing batch (`docs/uvrr-fuse.md`): the chunk is
+            // establishing batch (`docs/uvr-fuse.md`): the chunk is
             // malformed, dropped by name, the fetch cursor resumes
             // the range.
             Err(CommitFold::SplitBatch) => {

@@ -12,9 +12,9 @@
 //! a 32 KiB membership ops WAL (8 sector-sized slots), one 4 KiB checkpoint
 //! block.
 //!
-//! THE MARKER TRANSITION MACHINE (§5.1 of `docs/uvrr-durability-model.md`;
+//! THE MARKER TRANSITION MACHINE (§5.1 of `docs/uvr-durability-model.md`;
 //! the pure Rust twin `src/replica/reincarnation.rs`, whose `Marker`,
-//! `classify` and `restart` this store mirrors over real IO). uVRR performs
+//! `classify` and `restart` this store mirrors over real IO). UVR performs
 //! no disk flushes on the normal path: the superblock markers are an ordered
 //! transition system, each state naming the transition that must have
 //! completed for it to exist —

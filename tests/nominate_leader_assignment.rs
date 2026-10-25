@@ -1,4 +1,4 @@
-//! The NOMINATE force-feed ladder (`docs/uvrr-protocols.md`, the NOMINATE chapter):
+//! The NOMINATE force-feed ladder (`docs/uvr-protocols.md`, the NOMINATE chapter):
 //! the solver's plans driven through the ordinary pipeline, one establishing
 //! [`uvrr::configuration::SystemOperation::Batch`] entry at one slot, never a [`uvrr::wire::Tag::Fuse`] envelope, with the script
 //! feeding every released message to its addressee, and the leader asserted

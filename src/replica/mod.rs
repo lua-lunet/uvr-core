@@ -222,7 +222,7 @@ pub enum Input {
         target: Ballot,
     },
     /// The host reports that this node bumped its identity (the dirty
-    /// path of `docs/uvrr-protocols.md`, the reincarnation chapter §2): the node was running as
+    /// path of `docs/uvr-protocols.md`, the reincarnation chapter §2): the node was running as
     /// `old`, its volatile state was lost, and it reopened under a new
     /// identity, its `own`. The node answers the wire phase (§4) with a
     /// `Reincarnation(old, own)` announcement to the current primary: the
@@ -233,7 +233,7 @@ pub enum Input {
         old: NodeId,
     },
     /// The operator's reconfiguration plan
-    /// (`docs/uvrr-protocols.md`, the solver chapter), submitted over the
+    /// (`docs/uvr-protocols.md`, the solver chapter), submitted over the
     /// admin ingress: the leader validates it against its current committed
     /// configuration and answers with one [`crate::effects::Effect::AdminResponse`] verdict;
     /// on acceptance the plan-execution machine arms and steps through the
@@ -892,7 +892,7 @@ enum PlannedOverlapUpdate {
 }
 
 /// The reincarnation half of [`Bookkeeping`]: what a transition does to
-/// the leader's forced-sequence machine (§5 of `docs/uvrr-protocols.md`, the reincarnation chapter).
+/// the leader's forced-sequence machine (§5 of `docs/uvr-protocols.md`, the reincarnation chapter).
 #[derive(Clone, Debug, Default)]
 enum ReincarnationUpdate {
     /// The machine is untouched.
@@ -905,7 +905,7 @@ enum ReincarnationUpdate {
 }
 
 /// The gossip half of [`Bookkeeping`]: what a transition does to the
-/// node's gossip-witness list (`docs/uvrr-protocols.md`, the rejoin chapter
+/// node's gossip-witness list (`docs/uvr-protocols.md`, the rejoin chapter
 /// §3). Every node that hears a join gossip, the announcement or the
 /// gossip request, records the sender, leader or not.
 #[derive(Clone, Debug, Default)]
@@ -920,7 +920,7 @@ enum WitnessesUpdate {
 }
 
 /// The plan-execution half of [`Bookkeeping`]: what a transition does to
-/// the leader's armed plan machine (`docs/uvrr-protocols.md`, the solver chapter).
+/// the leader's armed plan machine (`docs/uvr-protocols.md`, the solver chapter).
 #[derive(Clone, Debug, Default)]
 enum PlanExecutionUpdate {
     /// The machine is untouched.
@@ -994,7 +994,7 @@ struct Bookkeeping {
     stalled: StalledUpdate,
     /// The planned-overlap update.
     planned: PlannedOverlapUpdate,
-    /// The reincarnation-machine update (`docs/uvrr-protocols.md`, the reincarnation chapter §5).
+    /// The reincarnation-machine update (`docs/uvr-protocols.md`, the reincarnation chapter §5).
     reincarnation: ReincarnationUpdate,
     /// The plan-execution-machine update (the solver doc).
     plan_execution: PlanExecutionUpdate,
@@ -1200,19 +1200,19 @@ pub struct Replica<J: Journal, Q: QuorumStrategy> {
     /// and the reopened node's path is the ordinary view change.
     planned: Option<PlannedOverlap>,
     /// The leader's armed reincarnation machine (§5 of
-    /// `docs/uvrr-protocols.md`, the reincarnation chapter): the announced `(old, new)` pair.
+    /// `docs/uvr-protocols.md`, the reincarnation chapter): the announced `(old, new)` pair.
     /// Volatile like the other attempt state: a leader crash discards it,
     /// and the bumped node re-announces to the stable leader
-    /// (`docs/uvrr-protocols.md`, the reincarnation chapter §8).
+    /// (`docs/uvr-protocols.md`, the reincarnation chapter §8).
     reincarnation: Option<reincarnation::ForcedSequence>,
     /// The leader's armed plan-execution machine
-    /// (`docs/uvrr-protocols.md`, the solver chapter): the accepted plan's
+    /// (`docs/uvr-protocols.md`, the solver chapter): the accepted plan's
     /// batches. Volatile like every attempt state: a leader crash discards
     /// it, and the dumb-operator contract hands continuation to the
     /// operator, the plan is re-solicited against the configuration that
     /// committed.
     plan_execution: Option<plan_execution::PlannedSequence>,
-    /// The gossip-witness list (`docs/uvrr-protocols.md`, the rejoin chapter
+    /// The gossip-witness list (`docs/uvr-protocols.md`, the rejoin chapter
     /// §3–§4): every node the join gossip has named, plus the startup
     /// configuration's statically registered witnesses. Every node keeps
     /// the list; only the leader acts on it. A statically registered
@@ -1370,7 +1370,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
 
     /// The same-identity resume of a controlled halt: the drain was
     /// vouched by a stopped quorum, and the boot gate's clean start has
-    /// latched (`docs/uvrr-io-obligations.md`, the boot-gate chapter §6).
+    /// latched (`docs/uvr-io-obligations.md`, the boot-gate chapter §6).
     ///
     /// The [`crate::lifecycle::Vouched`] token is minted only by the boot gate's clean
     /// classification, a stopped-quorum read. No token, no same-identity
@@ -1406,7 +1406,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
 
     /// The reincarnation of a crashed identity: the boot gate read no
     /// stopped quorum, the identity is dead, and the replacement pair is
-    /// the commitment (`docs/uvrr-protocols.md`, the reincarnation chapter §4).
+    /// the commitment (`docs/uvr-protocols.md`, the reincarnation chapter §4).
     ///
     /// The [`Bumped`] pair is minted only by the boot gate's crashed
     /// classification. The node reopens fenced in [`crate::progress::Status::Restarting`],
@@ -1433,7 +1433,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     }
 
     /// The seated observation: the deferred latch's witness
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3). `Some` iff this node is [`crate::progress::Status::Normal`] at
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3). `Some` iff this node is [`crate::progress::Status::Normal`] at
     /// voting weight, the engine itself observed the rejoin complete.
     /// Only this method mints [`Rejoined`]; the dirty fast start's latch
     /// is unreachable without it.
@@ -1529,7 +1529,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         self.own
     }
 
-    /// Seeds the gossip-witness list at startup (`docs/uvrr-protocols.md`, the rejoin chapter
+    /// Seeds the gossip-witness list at startup (`docs/uvr-protocols.md`, the rejoin chapter
     /// §4): the statically registered witnesses the deployment configuration
     /// names, out-of-region sinks that follow the stream forever. Duplicates
     /// and this node's own identity are dropped; a witness that is also a
@@ -1545,7 +1545,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         self
     }
 
-    /// The node's gossip-witness list (`docs/uvrr-protocols.md`, the rejoin
+    /// The node's gossip-witness list (`docs/uvr-protocols.md`, the rejoin
     /// chapter §3): operator-visible, like the era
     /// table. Every node keeps the list; only the leader acts on it.
     #[must_use]
@@ -1753,7 +1753,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 )
                 .with_activity(at));
         }
-        // The marker machine's ruling (§5.1 of `docs/uvrr-durability-model.md`):
+        // The marker machine's ruling (§5.1 of `docs/uvr-durability-model.md`):
         // a `Restarting` node completed a controlled shutdown, its flush
         // happened in the drain between `Stopping` and `Stopped`, not on the
         // hot path, so it is a member with complete state and no amnesia: it
@@ -1918,7 +1918,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 }));
         }
         // The reincarnation continuation (§5, §8 of
-        // `docs/uvrr-protocols.md`, the reincarnation chapter): the armed leader proposes the
+        // `docs/uvr-protocols.md`, the reincarnation chapter): the armed leader proposes the
         // next forced step on an ordinary tick. Each committed step
         // established a new era; the next waits for the view change into
         // it, which the ordinary suspicion machinery drives.
@@ -2171,7 +2171,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// frontier, the table folded over the system operations the advance
     /// newly covers (§8.7.1, see `reconfiguration::fold_committed`).
     /// `view` is the nomination bump the same fold returned
-    /// (`docs/uvrr-protocols.md`, the NOMINATE chapter): `Some` publishes the bumped
+    /// (`docs/uvr-protocols.md`, the NOMINATE chapter): `Some` publishes the bumped
     /// view as the node's current view, the serving view advanced by the
     /// committed command, while the retained view, the retained history's
     /// provenance, stays what it was, the bump re-selects nothing; `None`
@@ -2194,7 +2194,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             .ok_or(ProgressError::RevisionExhausted)
             .map_err(PlanRefusal::Progress)?;
         let current = view.unwrap_or_else(|| self.progress.current());
-        // The nomination's commit-time bump (`docs/uvrr-protocols.md`, the
+        // The nomination's commit-time bump (`docs/uvr-protocols.md`, the
         // NOMINATE chapter) advances the serving view by committed command and
         // re-selects no history: §1.3's equality under `Status::Normal` is
         // honoured by publishing the bumped view as current AND retained on
@@ -2595,7 +2595,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 }
             }
         }
-        // The list never names a voter (`docs/uvrr-protocols.md`, the rejoin chapter
+        // The list never names a voter (`docs/uvr-protocols.md`, the rejoin chapter
         // §3): whenever an install changes what anyone is, the promotion
         // commit above, or any other reconfiguration, the scan drops every
         // node the committed configuration now counts at weight one or more.
@@ -2674,7 +2674,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// A [`crate::wire::Tag::Commit`] datagram for `committed` to every other member of the
     /// current configuration (§13.3), and, while the machine is armed and
     /// the node is still outside the cluster, a memo-stream copy to the
-    /// reincarnated standby (§7 of `docs/uvrr-protocols.md`, the reincarnation chapter: the
+    /// reincarnated standby (§7 of `docs/uvr-protocols.md`, the reincarnation chapter: the
     /// leader streams every phase-1 and phase-2 message it ORIGINATES to
     /// the announced-and-not-yet-member node). [`crate::effects::Effect::Send.era`] is the
     /// era under which the sending decision was made (W1), in normal
@@ -2932,7 +2932,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     }
 
     /// The gossip-witness half of a join gossip
-    /// (`docs/uvrr-protocols.md`, the rejoin chapter §3): every node that
+    /// (`docs/uvr-protocols.md`, the rejoin chapter §3): every node that
     /// hears the announcement or the request, leader or not, whatever the
     /// transition's own outcome, records the sender, unless the committed
     /// configuration already counts it a voter. The list never names a
@@ -2971,14 +2971,14 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         at: Tick,
         kind: InputKind,
     ) -> Result<PlannedTransition, PlanRefusal> {
-        // The §6 membership-discard check (`docs/uvrr-protocols.md`, the reincarnation chapter):
+        // The §6 membership-discard check (`docs/uvr-protocols.md`, the reincarnation chapter):
         // a message FROM a node outside the current committed
         // configuration, a superseded old identity, or any other
         // non-member, is discarded. Three exceptions, each the message
         // that makes or keeps a membership: the `Reincarnation`
         // announcement is the bumped node's entry ticket, the
         // `GossipRequest` is the rejoin gossip's entry ticket (the join
-        // half and the gap half of `docs/uvrr-protocols.md`, the rejoin chapter
+        // half and the gap half of `docs/uvr-protocols.md`, the rejoin chapter
         // §2–§3, every node that hears either records the sender as a
         // gossip-witness), and the reconfiguration's own solicited
         // planned evidence is the vote the construction
@@ -3026,7 +3026,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                     && !self.stop_the_world_transition_outstanding()
             }
             // A same-view Fuse from the legitimate primary: the equivalent
-            // sequence of `Prepare`s (`docs/uvrr-fuse.md` §1), the
+            // sequence of `Prepare`s (`docs/uvr-fuse.md` §1), the
             // primary is alive (a backup's baseline).
             Body::Fuse { .. } => {
                 header.view == current && self.primary_of(header.view) == Some(from)
@@ -3085,17 +3085,17 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             Body::Reincarnation { .. } => self
                 .plan_reincarnation(journal, from, message, kind)
                 .map(|plan| self.with_join_gossip_witness(plan, from)),
-            // The rejoin gossip's request (`docs/uvrr-protocols.md`, the rejoin chapter
+            // The rejoin gossip's request (`docs/uvr-protocols.md`, the rejoin chapter
             // §2–§3): every node that hears it records the sender; the
             // leader, only the node that believes itself leader, answers
             // with the push above the sender's frontier and a fresh commit.
             Body::GossipRequest { .. } => self
                 .plan_gossip_request(journal, from, message, kind)
                 .map(|plan| self.with_join_gossip_witness(plan, from)),
-            // The acceptor's fuse transition (`docs/uvrr-fuse.md` §3): the
+            // The acceptor's fuse transition (`docs/uvr-fuse.md` §3): the
             // envelope folds whole with the ordinary prepare perimeter.
             Body::Fuse { ops } => self.plan_fuse(journal, from, message, ops, at, kind),
-            // The leader's fuse acks (`docs/uvrr-fuse.md` §4 step 3, §2):
+            // The leader's fuse acks (`docs/uvr-fuse.md` §4 step 3, §2):
             // one FuseOk is ONE atomic vote; the leader counts the sender
             // once on the first message in batch, the header slot's
             // coverage, each packed slot's evidence at its own ballot, the
@@ -3103,7 +3103,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             Body::FuseOk { .. } => self.plan_fuse_ok(journal, from, message, kind),
             // The backups already learn commitment through the ordinary
             // commit announcement; the batch is the leader's per-era
-            // emission, received by name and dropped (`docs/uvrr-fuse.md`
+            // emission, received by name and dropped (`docs/uvr-fuse.md`
             // §4).
             Body::CommitBatch { .. } => self.drop_plan(Diagnostic::FuseRefusal, kind),
         }?;

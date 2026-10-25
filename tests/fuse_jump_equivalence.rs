@@ -1,6 +1,6 @@
 //! The fused jump and the per-slot step-through land in the same state:
 //! the equivalence proof of the per-slot view-jump law
-//! (`docs/uvrr-protocols.md`, the NOMINATE chapter).
+//! (`docs/uvr-protocols.md`, the NOMINATE chapter).
 //!
 //! The Repetitive Construct, made mechanical: the same solver schedule is
 //! driven through one cluster twice. The stepped run proposes one

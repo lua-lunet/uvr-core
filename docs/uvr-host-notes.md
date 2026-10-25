@@ -1,4 +1,4 @@
-# uVRR host notes: discussion points, not obligations
+# UVR host notes: discussion points, not obligations
 
 > These notes are discussion points, not obligations. The library is
 > sans-IO: it cannot and does not prescribe how a host names its files,
@@ -9,7 +9,7 @@
 > kept current, and nothing here is authoritative.
 
 The normative host obligations live elsewhere and they rule:
-`uvrr-io-obligations.md`, the boot-gate chapter, the termination chapter,
+`uvr-io-obligations.md`, the boot-gate chapter, the termination chapter,
 and the identity law (the boot-gate chapter §5). This document holds the
 practices a deployment
 has found useful and nothing more.
@@ -152,7 +152,7 @@ answer is proposed.
   Today's answer in the normative documents is yes: a repeated send is a
   relay of effects the core has already released, never a message the host
   composes (`architecture.md`, liveness subsection, "The leader's resend
-  policy", resting on `uvrr-durability-model.md` §13.2's authorization rule
+  policy", resting on `uvr-durability-model.md` §13.2's authorization rule
   for replayed messages and on Viewstamped Replication Revisited 2012 §4.1,
   where the primary re-sends the proposal that is lagging). A deployment
   preferring the core to re-emit on tick would instead want the core's tick
@@ -189,5 +189,5 @@ answer is proposed.
   a corrupt marker, never an identity. The crash-restart counter of the
   identity the host names on a restart obeys the same rule.
 - The worked example is the TigerBeetle-superblock demo
-  (`examples/uvrr-reincarnation/`), whose own README states what it
+  (`examples/uvr-reincarnation/`), whose own README states what it
   demonstrates; nothing here is kept current.

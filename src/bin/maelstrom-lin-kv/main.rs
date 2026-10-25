@@ -98,7 +98,7 @@
 //! needs.
 //!
 //! The bump's durable [`uvrr::lifecycle::Marker::Joining`] write DEFERS to the engine's seated
-//! observation (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3, the flush is never paid at
+//! observation (`docs/uvr-io-obligations.md`, the boot-gate chapter §3, the flush is never paid at
 //! the boundary of an uninitialised start): the announcement carries the
 //! pair while the markers still hold the state as loaded, and the latch
 //! fires, over the then-current running state, once the reincarnated
@@ -115,7 +115,7 @@
 //!
 //! # Identity mapping (host-side, transparent to Maelstrom)
 //!
-//! The core's [`uvrr::ids::NodeId`] is the durable pair (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5):
+//! The core's [`uvrr::ids::NodeId`] is the durable pair (`docs/uvr-io-obligations.md`, the boot-gate chapter §5):
 //! the system half names the node, the crash-counter half names the life;
 //! the Maelstrom transport names a fixed roster. The host maps between
 //! them ([`Identity`]): a genesis identity is the sorted-roster position
@@ -274,7 +274,7 @@ fn main() {
 }
 
 /// The host-side identity map: a core identity is the durable pair
-/// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §5), the roster position naming the system
+/// (`docs/uvr-io-obligations.md`, the boot-gate chapter §5), the roster position naming the system
 /// half and the life naming the crash-counter half; the Maelstrom transport
 /// names a fixed roster. Transparent to Maelstrom: a bumped identity
 /// resolves to the same Maelstrom node string it reincarnated under, and
@@ -415,7 +415,7 @@ struct NodeRunner {
     session: Option<Running<Gate>>,
     /// A reincarnation's deferred latch: the crashed session held until
     /// the engine's seated observation mints the witness, at which point
-    /// the bumped [`uvrr::lifecycle::Marker::Joining`] markers become durable (`docs/uvrr-io-obligations.md`, the boot-gate chapter
+    /// the bumped [`uvrr::lifecycle::Marker::Joining`] markers become durable (`docs/uvr-io-obligations.md`, the boot-gate chapter
     /// §3, the flush is never paid at the boundary of an uninitialised
     /// start; the re-crash replay re-decides the same pair).
     deferred: Option<Crashed<Gate>>,
@@ -719,7 +719,7 @@ impl NodeRunner {
     /// the gate's pair is the commitment, and the announcement follows.
     /// The bumped [`uvrr::lifecycle::Marker::Joining`] markers are NOT written here: the latch
     /// defers to the engine's seated observation
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3). A crash before the latch re-reads
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3). A crash before the latch re-reads
     /// the old markers, re-classifies crashed, and re-decides the same
     /// pair, the announcement is idempotent at the leader (§4), so the
     /// replay is absorbed.
@@ -937,7 +937,7 @@ impl NodeRunner {
     /// Any failure is logged, not fatal: the markers keep the honest
     /// reading (the boot write, no stopped quorum) and the next init
     /// resurrects (T3), never a [`uvrr::lifecycle::Marker::Stopped`] claim the drain did not earn
-    /// (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3).
+    /// (`docs/uvr-io-obligations.md`, the boot-gate chapter §3).
     /// The volatile mode carries no markers; EOF is just exit.
     fn clean_shutdown(&mut self) {
         if self.replica.is_none() {
@@ -982,7 +982,7 @@ impl NodeRunner {
 
     /// Fires the deferred latch when the engine's seated observation
     /// arrives: the bumped [`uvrr::lifecycle::Marker::Joining`] markers become durable over the
-    /// current running state (`docs/uvrr-io-obligations.md`, the boot-gate chapter §3).
+    /// current running state (`docs/uvr-io-obligations.md`, the boot-gate chapter §3).
     fn settle_deferred(&mut self) {
         let Some(crashed) = self.deferred.take() else {
             return;
@@ -1724,7 +1724,7 @@ fn lifecycle_markers(identity: NodeId, marker: Marker) -> SuperblockCopies {
     }
 }
 
-/// The bench host's [`LifecycleStore`] (`docs/uvrr-io-obligations.md`, the boot-gate chapter §6):
+/// The bench host's [`LifecycleStore`] (`docs/uvr-io-obligations.md`, the boot-gate chapter §6):
 /// the state file lent to the marker machine for a life. The host plugs
 /// in the writes, the quorum read is the store's load, the 4x marker
 /// write is the store's commit, the drain is the file's fsync, and the

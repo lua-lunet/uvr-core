@@ -1,5 +1,5 @@
 //! The era planner: reduce-left batch evaluation
-//! (`docs/uvrr-protocols.md`, the reconfiguration-rules chapter §5).
+//! (`docs/uvr-protocols.md`, the reconfiguration-rules chapter §5).
 //!
 //! The leader never proposes an unsafe batch. Given a stream of operations it runs the
 //! **reduce-left partitioner**: a fold carrying the tuple

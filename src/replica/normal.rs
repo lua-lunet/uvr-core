@@ -79,7 +79,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             },
         };
         let mut recipients = self.backups();
-        // The stream targets (`docs/uvrr-protocols.md`, the rejoin chapter
+        // The stream targets (`docs/uvr-protocols.md`, the rejoin chapter
         // §3): the leader's own proposals stream to the announced standby
         // and to every gossip-witness too, unless ordinary addressing
         // already covers them.
@@ -170,7 +170,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // fence into the advertised view and fetch, install only from the
         // qualified evidence. The one §10 exception: a node still at its
         // boot fence that is OUTSIDE every configuration it can name,
-        // the reincarnated standby (`docs/uvrr-protocols.md`, the reincarnation chapter §10),
+        // the reincarnated standby (`docs/uvr-protocols.md`, the reincarnation chapter §10),
         // takes the committed operations the leader-originated stream
         // carries at its boot fence instead: adopting the advertised
         // view here would leave the boot fence behind, and the standby's
@@ -219,7 +219,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // configuration counts as a member: the fresh cluster has nothing
         // to recover (§4's own mechanism). A boot-fenced node OUTSIDE
         // every configuration it can name, the reincarnated standby
-        // (§10 of `docs/uvrr-protocols.md`, the reincarnation chapter), takes the committed
+        // (§10 of `docs/uvr-protocols.md`, the reincarnation chapter), takes the committed
         // operations the stream carries but adopts no view and stays
         // fenced: it never votes, and the promotion era's committed
         // reconfiguration is what admits it.
@@ -272,7 +272,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             // here, so a fold refusal is committed history the
             // configuration cannot hold, the breach faults. The paced
             // fold covers only what this node's own view can carry
-            // (`docs/uvrr-fuse.md` §4 step 4); a deferred tail commits
+            // (`docs/uvr-fuse.md` §4 step 4); a deferred tail commits
             // once the view has walked.
             let (config, covered, _stopped, bump) = match self.fold_committed(
                 journal,
@@ -286,7 +286,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                     return Err(PlanRefusal::JournalEntryUnavailable { slot });
                 }
                 // The commit frontier would split an establishing
-                // batch (`docs/uvrr-fuse.md`): refused by name, the
+                // batch (`docs/uvr-fuse.md`): refused by name, the
                 // gap rule's fetch is the repair.
                 Err(CommitFold::SplitBatch) => {
                     return self.drop_plan(Diagnostic::FuseRefusal, kind);
@@ -350,7 +350,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 return Err(PlanRefusal::JournalEntryUnavailable { slot });
             }
             // The commit frontier would split an establishing batch
-            // (`docs/uvrr-fuse.md`): refused by name, the gap rule's
+            // (`docs/uvr-fuse.md`): refused by name, the gap rule's
             // fetch is the repair.
             Err(CommitFold::SplitBatch) => {
                 return self.drop_plan(Diagnostic::FuseRefusal, kind);
@@ -367,7 +367,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
             Err(CommitFold::Breach { .. }) => return self.breach_plan(kind),
         };
         // The paced fold covers only what this node's own view can carry
-        // (`docs/uvrr-fuse.md` §4 step 4); a deferred tail commits once the
+        // (`docs/uvr-fuse.md` §4 step 4); a deferred tail commits once the
         // view has walked.
         let new_committed = covered;
         if new_committed < entry.slot {
@@ -379,7 +379,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                 // The post-piggyback table is the base of the chain, not the
                 // judge: the entry's guards are evaluated against the
                 // configuration the fold of the accepted-but-uncommitted
-                // predecessors established (`docs/uvrr-fuse.md` §6), exactly
+                // predecessors established (`docs/uvr-fuse.md` §6), exactly
                 // as though they had arrived as separate datagrams with
                 // nothing between them, or the step-through diverges from
                 // the slab it mirrors.
@@ -514,7 +514,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // proposed (§8.7.4), is what makes the pair safe. Membership and
         // the strategy's decision both come from that record (Q1).
         let record = self.progress.config().current();
-        // The §6 membership-discard rule (`docs/uvrr-protocols.md`, the reincarnation chapter):
+        // The §6 membership-discard rule (`docs/uvr-protocols.md`, the reincarnation chapter):
         // a sender outside the configuration is unknown; a sender whose
         // weight is 0 is a learner, it receives history but contributes
         // nothing to any quorum, so its vote is dropped before it is ever
@@ -577,7 +577,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// and the recorded acknowledgements alone. The cascade is
     /// SEGMENT-ATOMIC: a maximal run of consecutive system entries is
     /// the one establishing batch a fuse envelope packed
-    /// (`docs/uvrr-fuse.md` §1) and commits whole or not at all, an
+    /// (`docs/uvr-fuse.md` §1) and commits whole or not at all, an
     /// establishing batch's era is established by the whole fold.
     fn commit_cascade_frontier(&self, journal: &J::View, vote: Option<(NodeId, Slot)>) -> Slot {
         let record = self.progress.config().current();
@@ -658,7 +658,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // journaled (the cascade walks the accepted tail), so a fold
         // refusal is committed history the configuration cannot hold,
         // the breach faults. The paced fold covers only what this node's
-        // own view can carry (`docs/uvrr-fuse.md` §4 step 4): a run the
+        // own view can carry (`docs/uvr-fuse.md` §4 step 4): a run the
         // view cannot carry defers, the committed frontier stops at the
         // last folded slot, and the tail commits once the view has
         // walked — the nomination rider's bump is what carries the whole
@@ -670,7 +670,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                     return Err(PlanRefusal::JournalEntryUnavailable { slot });
                 }
                 // The cascade is segment-atomic, so this is unreachable;
-                // stated so the match stays total (`docs/uvrr-fuse.md`).
+                // stated so the match stays total (`docs/uvr-fuse.md`).
                 Err(CommitFold::SplitBatch) => {
                     return self.drop_plan(Diagnostic::FuseRefusal, kind);
                 }
@@ -698,7 +698,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         )?;
         let mut effects = self.apply_effects(journal, self.progress.committed(), committed)?;
         effects.extend(self.broadcast_commit(committed));
-        // The per-era commit emission (`docs/uvrr-fuse.md` §4): an
+        // The per-era commit emission (`docs/uvr-fuse.md` §4): an
         // establishing batch the advance committed, the packed schedule a
         // fuse envelope carried, is announced as one `CommitBatch` naming
         // its slots' committed frontiers, no ranges.
@@ -753,7 +753,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // §10 exception, as in `plan_prepare`: a boot-fenced standby
         // outside every configuration it can name takes the commit
         // frontier the leader-originated stream carries at its boot fence
-        // (`docs/uvrr-protocols.md`, the reincarnation chapter §10), staying fenced, the
+        // (`docs/uvr-protocols.md`, the reincarnation chapter §10), staying fenced, the
         // frontier is clamped by the journal as ever (§5 invariant 2).
         if header.view > current {
             let boot_fence = matches!(self.progress.status(), Status::Restarting | Status::Joining)
@@ -786,7 +786,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // The same member-gated bootstrap adoption as `plan_prepare`:
         // a boot-fenced standby outside every configuration it can name
         // takes the commit frontier the stream carries and stays fenced
-        // (§10 of `docs/uvrr-protocols.md`, the reincarnation chapter), never adopting a view.
+        // (§10 of `docs/uvr-protocols.md`, the reincarnation chapter), never adopting a view.
         let member_of_view = self
             .progress
             .config()
@@ -819,7 +819,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         // record), so a fold refusal is committed history the
         // configuration cannot hold, the breach faults. The paced fold
         // covers only what this node's own view can carry
-        // (`docs/uvrr-fuse.md` §4 step 4); a deferred tail commits once
+        // (`docs/uvr-fuse.md` §4 step 4); a deferred tail commits once
         // the view has walked.
         let (config, covered, _stopped, bump) =
             match self.fold_committed(journal, &[], self.progress.committed(), new_committed, true)
@@ -829,7 +829,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
                     return Err(PlanRefusal::JournalEntryUnavailable { slot });
                 }
                 // The commit frontier would split an establishing batch
-                // (`docs/uvrr-fuse.md`): refused by name, the ordinary
+                // (`docs/uvr-fuse.md`): refused by name, the ordinary
                 // stream's catch-up is the repair.
                 Err(CommitFold::SplitBatch) => {
                     return self.drop_plan(Diagnostic::FuseRefusal, kind);
@@ -852,7 +852,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
     /// The commit cascade's atomic segment beginning at `next`: a maximal
     /// run of consecutive system entries SHARING ONE ENTRY ERA, one era's
     /// establishing fold — the fused slab's per-slot stamps mark the era
-    /// boundaries (`docs/uvrr-fuse.md` §1) — commits whole, and any other
+    /// boundaries (`docs/uvr-fuse.md` §1) — commits whole, and any other
     /// slot commits alone. The run is bounded by the accepted frontier,
     /// which is where the journal's system tail ends.
     fn commit_segment(&self, journal: &J::View, next: Slot, accepted: Slot) -> (Slot, Slot) {
@@ -881,7 +881,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         (next, end)
     }
 
-    /// The per-era commit emission (`docs/uvrr-fuse.md` §4 step 4): ONE
+    /// The per-era commit emission (`docs/uvr-fuse.md` §4 step 4): ONE
     /// [`crate::wire::Tag::CommitBatch`] per establishing batch the advance `(from, through]`
     /// committed, a maximal run of two or more consecutive system
     /// entries, the packed schedule a fuse envelope carried. Each batch's
@@ -940,7 +940,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         effects
     }
 
-    /// The primary's [`crate::wire::Tag::FuseOk`] handler (`docs/uvrr-fuse.md` §4 step 3,
+    /// The primary's [`crate::wire::Tag::FuseOk`] handler (`docs/uvr-fuse.md` §4 step 3,
     /// §2): one [`crate::wire::Tag::FuseOk`] is ONE atomic vote vouching for the whole
     /// envelope, a node processes the full datagram before reading any
     /// other message, so the leader counts a majority response on the
@@ -981,7 +981,7 @@ impl<J: Journal, Q: QuorumStrategy> Replica<J, Q> {
         if header.view != current {
             return self.drop_plan(Diagnostic::FuseRefusal, kind);
         }
-        // The §6 membership-discard rule (`docs/uvrr-protocols.md`, the reincarnation chapter),
+        // The §6 membership-discard rule (`docs/uvr-protocols.md`, the reincarnation chapter),
         // as `plan_prepare_ok` runs it: a sender outside the configuration
         // is unknown; a weight-0 sender is a learner contributing nothing,
         // its acknowledgement not a vote. The arrival still asks the

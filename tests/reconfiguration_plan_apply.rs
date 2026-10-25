@@ -1,4 +1,4 @@
-//! The leader side of plan/apply (`docs/uvrr-protocols.md`, the solver chapter):
+//! The leader side of plan/apply (`docs/uvr-protocols.md`, the solver chapter):
 //! the verdict, the plan-execution machine, the drift abort, the admin-first
 //! dual-queue rule, and the leader-crash discard, over the in-memory harness
 //! (no real UDP, no PAXE packing at this layer).

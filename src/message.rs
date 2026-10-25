@@ -133,7 +133,7 @@ pub enum Body {
         /// the requester resumes with a fresh [`Body::GetState`] from the cursor.
         more: bool,
     },
-    /// A reincarnation announcement (`docs/uvrr-protocols.md`, the reincarnation chapter §4): the
+    /// A reincarnation announcement (`docs/uvr-protocols.md`, the reincarnation chapter §4): the
     /// pair of identities the restarted node carries and the frontiers of
     /// its past life. Sent by the bumped node to all nodes; only the leader
     /// responds. The past-life frontiers let the leader's immediate ack push
@@ -154,7 +154,7 @@ pub enum Body {
         prepared: Slot,
     },
     /// The packed Phase2s of one reconfiguration schedule
-    /// (`docs/uvrr-fuse.md` §1): the body carries `count`, then
+    /// (`docs/uvr-fuse.md` §1): the body carries `count`, then
     /// `count × SystemOperation` in batch order, while the header carries the
     /// head ballot and `first_slot`. Every packed slot carries its own ballot;
     /// the header names the first of them, and the slab's last is the tail
@@ -165,20 +165,20 @@ pub enum Body {
         ops: Vec<SystemOperation>,
     },
     /// An acceptor's acknowledgement of a [`Body::Fuse`]
-    /// (`docs/uvrr-fuse.md` §3): `count`, then one accepted slot per packed
+    /// (`docs/uvr-fuse.md` §3): `count`, then one accepted slot per packed
     /// op, in batch order. No range encodings.
     FuseOk {
         /// The accepted slots, in batch order.
         acks: Vec<Slot>,
     },
     /// One committed frontier per packed slot, in batch order
-    /// (`docs/uvrr-fuse.md` §4): `count`, then `count × Slot`. No range
+    /// (`docs/uvr-fuse.md` §4): `count`, then `count × Slot`. No range
     /// encodings.
     CommitBatch {
         /// The committed frontiers, in batch order.
         committed: Vec<Slot>,
     },
-    /// The rejoin gossip's request (`docs/uvrr-protocols.md`, the rejoin chapter
+    /// The rejoin gossip's request (`docs/uvr-protocols.md`, the rejoin chapter
     /// §2–§3): the sender's frontiers, fired at every node. A node that
     /// cannot commit in order asks for the missing range; a node outside the
     /// cluster uses it as its join. Only the node that believes itself
@@ -314,7 +314,7 @@ fn pack_counted<T: Pack>(items: &[T], w: &mut PackWriter<'_>) {
 /// Reads a `u32`-counted sequence in which a zero count is malformed.
 ///
 /// A fuse envelope names its things, and naming none is not a batch
-/// (`docs/uvrr-fuse.md` §1): a zero-count envelope is meaningless, so the
+/// (`docs/uvr-fuse.md` §1): a zero-count envelope is meaningless, so the
 /// decode refuses it rather than yielding an empty batch. No
 /// `with_capacity(count)`: the count is untrusted input, and reserving
 /// against it would let a four-byte prefix demand an unbounded allocation.

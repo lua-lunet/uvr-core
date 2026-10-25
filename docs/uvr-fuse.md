@@ -1,4 +1,4 @@
-# uVRR Fuse: one reconfiguration schedule, one datagram, one round trip
+# UVR Fuse: one reconfiguration schedule, one datagram, one round trip
 
 Fuse is a wire envelope that packs the per-slot Phase2 (`Prepare`) messages of one
 reconfiguration schedule into a single datagram. It is not a new protocol semantic:
@@ -11,8 +11,8 @@ first payload alone. Accepting a Phase2 at a slot is a promise to that slot's ba
 when the corresponding Phase1 was lost, so an acceptor that folds a slab ends
 promised at the slab's tail ballot, never at the head ballot it started from. This
 document states what Fuse IS; the command alphabet and its boundaries are
-`docs/uvrr-protocols.md` (the reconfiguration-rules chapter), and the durability
-framing is `docs/uvrr-durability-model.md` §13.8.
+`docs/uvr-protocols.md` (the reconfiguration-rules chapter), and the durability
+framing is `docs/uvr-durability-model.md` §13.8.
 
 ## 1. The envelope
 
@@ -34,7 +34,7 @@ establishing operations among the first `i` packed ops. A `Nominate` rider
 establishes no era of its own: it shares the era of the slot it rides, so the
 rider's slot carries its carrier's era and the rider's commit-time bump enters the
 era the carrier's fold established (the NOMINATE chapter of
-`docs/uvrr-protocols.md`). The slab's `tail_ballot` is the ballot of its final
+`docs/uvr-protocols.md`). The slab's `tail_ballot` is the ballot of its final
 packed slot, `first_slot + count - 1`, and the header does not carry it: the tail
 ballot is computed by the reconfiguration solver as it folds the schedule slot by
 slot, one ballot per packed slot, and the acceptor's fold arrives at those ballots
@@ -220,7 +220,7 @@ envelope per recipient: leader to each backup, one `FuseOk` back, one
 batching optimisation: the per-datagram transport and authenticated-encryption
 overheads are paid once across the packed operations, not once per operation.
 The cross-DC maximum RTT of 3.3 ms measured in
-`docs/uvrr-experiment-design.md` therefore bounds the whole swap, not each
+`docs/uvr-experiment-design.md` therefore bounds the whole swap, not each
 era of it; the per-op `Prepare` round trips no longer multiply it.
 
 The round trip is one collection of replies, not one per op, because the

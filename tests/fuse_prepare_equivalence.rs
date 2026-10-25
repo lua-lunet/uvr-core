@@ -1,4 +1,4 @@
-//! The equivalence claim (`docs/uvrr-fuse.md` §8) under the per-slot era
+//! The equivalence claim (`docs/uvr-fuse.md` §8) under the per-slot era
 //! law: a fused slab of N ops produces the same accepts, journal entries —
 //! the same slot, the same era stamp, the same value at every packed slot —
 //! and the same promise as the same N ops arriving as N individual
@@ -54,7 +54,7 @@ fn current_view() -> Ballot {
 }
 
 /// The schedule: join a fresh learner at the succession end, then promote
-/// it, one era per establishing slot (`docs/uvrr-fuse.md` §1).
+/// it, one era per establishing slot (`docs/uvr-fuse.md` §1).
 fn schedule(size: u32) -> Vec<SystemOperation> {
     let learner = n(usize::try_from(size).expect("the size fits"));
     vec![

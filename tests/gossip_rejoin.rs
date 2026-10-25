@@ -1,6 +1,6 @@
 //! Rejoin gossip: the anti-wedge design as explicit message-level tests.
 //!
-//! The brief this corpus pins (`docs/uvrr-protocols.md`, the rejoin chapter):
+//! The brief this corpus pins (`docs/uvr-protocols.md`, the rejoin chapter):
 //! a node outside the cluster gossips to find it, the join gossip carries
 //! its frontiers, every node that hears it lists the sender as a
 //! gossip-witness, and the leader, only the leader, streams all phase-2s

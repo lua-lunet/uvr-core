@@ -1,7 +1,7 @@
 name: Documentation
 
 # The documentation site. Every push to main rebuilds and republishes
-# https://lua-lunet.github.io/uvrr-core/ from the repository files: docs
+# https://lua-lunet.github.io/uvr-core/ from the repository files: docs
 # docs generates docs/src from the docs the tree already carries, zensical
 # renders it into docs/site, and the Pages artifact lands on the site.
 

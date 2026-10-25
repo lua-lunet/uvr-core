@@ -1,5 +1,5 @@
 //! Exhaustive per-message properties: the [`uvrr::wire::Tag::FuseOk`] the serving primary counts
-//! (`docs/uvrr-fuse.md` §2, §4 step 3).
+//! (`docs/uvr-fuse.md` §2, §4 step 3).
 //!
 //! One message, applied to the primary in an assembled state, over the plain
 //! cross product of the dimensions the handler branches on: the sender's

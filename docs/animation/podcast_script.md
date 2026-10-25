@@ -1,4 +1,4 @@
-# The uVRR Explainer: A Walk Up the Consistency Ladder
+# The UVR Explainer: A Walk Up the Consistency Ladder
 
 ## Format
 
