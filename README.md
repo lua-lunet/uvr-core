@@ -20,7 +20,7 @@ Sans-io means the whole protocol is a state machine: you hand a replica an input
 and drain the outputs it produced. No sockets, no threads, no async runtime, no
 callbacks. The host owns transport, timers, and durability.
 
-```rust ignore
+```rust
 use uvr::effects::Stability;
 use uvr::ids::{NodeId, Operation, OperationId, Tick};
 use uvr::journal::{Journal, SegmentedLog};
