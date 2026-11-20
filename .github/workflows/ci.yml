@@ -48,6 +48,7 @@ concurrency:
 
 jobs:
   setup-matrix:
+    timeout-minutes: 20
     name: Setup build matrix
     # The matrix exists for the gate, and the gate runs on branches and
     # pull requests only: a tag builds nothing, so the tag path has no
@@ -65,6 +66,7 @@ jobs:
 
           echo "matrix=$ALL" >> "$GITHUB_OUTPUT"
   gate:
+    timeout-minutes: 25
     name: ${{ matrix.target_key }}
     # Pull requests and pushes to the working branches only. A tag does
     # not build: the commit it names was merged to a protected branch
@@ -175,6 +177,7 @@ jobs:
   # and the commit a tag names was merged to a protected branch through
   # one of them.
   publish-release:
+    timeout-minutes: 25
     name: Publish release
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
