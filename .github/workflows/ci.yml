@@ -29,6 +29,14 @@ on:
     branches: [main, uVRR, '0.*']
     tags:
       - 'v*'
+    # A docs-only push proves nothing about the code: a changed .md file
+    # runs no compiler, no test and no lint. The gate still runs on every
+    # pull request, which is where the branch rules read their required
+    # checks, and path filters are not evaluated for tag pushes, so the
+    # release path is untouched.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
 
 permissions:
   contents: write # publish-release creates GitHub releases on v* tags
@@ -54,6 +62,9 @@ jobs:
     # matrix to set up.
     if: github.ref_type != 'tag'
     runs-on: ubuntu-24.04
+    # A matrix read from a string literal is seconds of work. The bound is
+    # here so a queue stall or a stuck checkout bills minutes, not hours.
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -72,6 +83,11 @@ jobs:
     if: github.ref_type != 'tag'
     needs: setup-matrix
     runs-on: ${{ matrix.os }}
+    # The gate builds libsodium from source, lints all targets, runs both
+    # test lanes, the doc tests and the documentation build, on three
+    # runners. Without a bound a hung lane bills the six-hour maximum;
+    # with one it fails and reports.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup-matrix.outputs.matrix) }}
@@ -178,6 +194,9 @@ jobs:
     name: Publish release
     if: github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    # Regenerate the corpus, archive it, publish: no build of its own, so
+    # the bound is generous and still finite.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       # The pinned toolchain, as every other lane: the exporters compile
